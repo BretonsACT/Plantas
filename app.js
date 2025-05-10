@@ -1,5 +1,5 @@
 // --- Variables Globales y Constantes ---
-const API_KEY = 'TU_API_KEY_DE_OPENWEATHERMAP';
+const API_KEY_WEATHERAPI = '4c5750f21a1a4da398c222225252602'; 
 const plantsListDiv = document.getElementById('plantsList');
 const addPlantButton = document.getElementById('addPlantButton');
 const plantModal = document.getElementById('plantModal');
