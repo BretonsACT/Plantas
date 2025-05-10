@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Jardín Inteligente</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+</head>
+<body>
+    <div class="container">
+        <h1>Mis Plantas</h1>
+        <button id="addPlantButton">➕ Añadir Nueva Planta</button>
+
+        <div id="plantsList">
+            <!-- Las plantas se insertarán aquí por JS -->
+            <!-- Ejemplo de cómo se vería una planta:
+            <div class="plant-card" data-id="plant_id_example">
+                <h2>Nombre de la Planta</h2>
+                <p class="last-watered">Último riego: Nunca</p>
+                <p class="next-reminder">Próximo aviso: Pendiente</p>
+                <p class="base-frequency">Frecuencia base: X días</p>
+                <button class="water-button">💧 Regada Hoy</button>
+                <button class="edit-plant-button">✏️</button>
+                <button class="delete-plant-button">🗑️</button>
+            </div>
+            -->
+        </div>
+
+        <!-- Modal para Añadir/Editar Planta (inicialmente oculto) -->
+        <div id="plantModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2 id="modalTitle">Añadir Nueva Planta</h2>
+                <input type="hidden" id="plantIdInput"> <!-- Para editar -->
+                <label for="plantName">Nombre:</label>
+                <input type="text" id="plantName" required><br><br>
+                <label for="plantFrequency">Frecuencia de Riego Base (días):</label>
+                <input type="number" id="plantFrequency" min="1" required><br><br>
+                <!-- <label for="plantPhoto">Foto (opcional):</label>
+                <input type="file" id="plantPhoto" accept="image/*"><br><br> -->
+                <button id="savePlantButton">Guardar Planta</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
