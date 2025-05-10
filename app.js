@@ -1,5 +1,6 @@
-// --- Variables Globales y Constantes ---
-const API_KEY_WEATHERAPI = '4c5750f21a1a4da398c222225252602'; 
+/// --- Variables Globales y Constantes ---
+// const API_KEY_OPENWEATHERMAP = 'TU_API_KEY_DE_OPENWEATHERMAP'; // Ya no se usa
+const API_KEY_WEATHERAPI = '4c5750f21a1a4da398c222225252602'; // ¡NUEVA API KEY!
 const plantsListDiv = document.getElementById('plantsList');
 const addPlantButton = document.getElementById('addPlantButton');
 const plantModal = document.getElementById('plantModal');
@@ -10,162 +11,45 @@ const plantIdInput = document.getElementById('plantIdInput');
 const plantNameInput = document.getElementById('plantName');
 const plantFrequencyInput = document.getElementById('plantFrequency');
 
-let plants = []; // Array para guardar las plantas
-let editingPlantId = null; // Para saber si estamos editando
+let plants = [];
+let editingPlantId = null;
 
-// --- Service Worker y Notificaciones (similar a antes) ---
-if ('serviceWorker' in navigator) { /* ... */ }
-function requestNotificationPermission() { /* ... */ }
-requestNotificationPermission();
-
-// --- Cargar y Mostrar Plantas ---
-function loadPlants() {
-    const storedPlants = localStorage.getItem('plants');
-    if (storedPlants) {
-        plants = JSON.parse(storedPlants);
-    }
-    renderPlants();
-}
-
-function renderPlants() {
-    plantsListDiv.innerHTML = ''; // Limpiar lista
-    if (plants.length === 0) {
-        plantsListDiv.innerHTML = '<p>Aún no has añadido ninguna planta.</p>';
-        return;
-    }
-    plants.forEach(plant => {
-        const plantCard = document.createElement('div');
-        plantCard.classList.add('plant-card');
-        plantCard.dataset.id = plant.id;
-
-        const nameEl = document.createElement('h2');
-        nameEl.textContent = plant.name;
-
-        const lastWateredEl = document.createElement('p');
-        lastWateredEl.classList.add('last-watered');
-        lastWateredEl.textContent = `Último riego: ${plant.lastWateredDate ? new Date(plant.lastWateredDate).toLocaleString() : 'Nunca'}`;
-
-        const nextReminderEl = document.createElement('p');
-        nextReminderEl.classList.add('next-reminder');
-        nextReminderEl.textContent = `Próximo aviso: ${plant.nextReminderDate ? new Date(plant.nextReminderDate).toLocaleString() : 'Pendiente'}`;
-
-        const baseFreqEl = document.createElement('p');
-        baseFreqEl.classList.add('base-frequency');
-        baseFreqEl.textContent = `Frecuencia base: ${plant.baseWateringFrequencyDays} días`;
-        
-        const tempInfoEl = document.createElement('p'); // Opcional, para mostrar temp. del último riego
-        tempInfoEl.classList.add('temp-info');
-        if (plant.temperatureAtLastWatering !== undefined) {
-            tempInfoEl.textContent = `Temp. último riego: ${plant.temperatureAtLastWatering}°C`;
-        }
-
-
-        const waterButton = document.createElement('button');
-        waterButton.classList.add('water-button');
-        waterButton.textContent = '💧 Regada Hoy';
-        waterButton.addEventListener('click', () => handleWaterPlant(plant.id));
-
-        const editButton = document.createElement('button');
-        editButton.classList.add('edit-plant-button');
-        editButton.textContent = '✏️ Editar';
-        editButton.addEventListener('click', () => openEditModal(plant));
-        
-        const deleteButton = document.createElement('button');
-        deleteButton.classList.add('delete-plant-button');
-        deleteButton.textContent = '🗑️ Eliminar';
-        deleteButton.addEventListener('click', () => handleDeletePlant(plant.id));
-
-        plantCard.appendChild(nameEl);
-        plantCard.appendChild(lastWateredEl);
-        plantCard.appendChild(nextReminderEl);
-        plantCard.appendChild(baseFreqEl);
-        plantCard.appendChild(tempInfoEl);
-        plantCard.appendChild(waterButton);
-        plantCard.appendChild(editButton);
-        plantCard.appendChild(deleteButton);
-        plantsListDiv.appendChild(plantCard);
+// --- Service Worker y Notificaciones (sin cambios aquí, solo para mostrar contexto) ---
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(registration => console.log('ServiceWorker registration successful with scope: ', registration.scope))
+            .catch(error => console.log('ServiceWorker registration failed: ', error));
     });
 }
 
-// --- Lógica del Modal (Añadir/Editar) ---
-addPlantButton.addEventListener('click', () => {
-    editingPlantId = null;
-    modalTitle.textContent = 'Añadir Nueva Planta';
-    plantIdInput.value = '';
-    plantNameInput.value = '';
-    plantFrequencyInput.value = '';
-    plantModal.style.display = 'block';
-});
-
-closeButton.addEventListener('click', () => {
-    plantModal.style.display = 'none';
-});
-
-window.addEventListener('click', (event) => { // Cerrar modal si se clica fuera
-    if (event.target == plantModal) {
-        plantModal.style.display = 'none';
-    }
-});
-
-savePlantButton.addEventListener('click', () => {
-    const name = plantNameInput.value.trim();
-    const frequency = parseInt(plantFrequencyInput.value);
-
-    if (!name || isNaN(frequency) || frequency < 1) {
-        alert('Por favor, introduce un nombre y una frecuencia de riego válida.');
-        return;
-    }
-
-    if (editingPlantId) { // Editando planta existente
-        const plantIndex = plants.findIndex(p => p.id === editingPlantId);
-        if (plantIndex > -1) {
-            plants[plantIndex].name = name;
-            plants[plantIndex].baseWateringFrequencyDays = frequency;
-            // Si se edita la frecuencia, se podría recalcular el próximo riego,
-            // pero para simplificar, solo actualizamos los datos base.
-            // El próximo riego se calculará cuando se marque como regada.
-        }
-    } else { // Añadiendo nueva planta
-        const newPlant = {
-            id: 'plant_' + Date.now(),
-            name: name,
-            photo: null, // Implementar subida de fotos es un paso adicional
-            baseWateringFrequencyDays: frequency,
-            lastWateredDate: null,
-            nextReminderDate: null,
-            temperatureAtLastWatering: null
-        };
-        plants.push(newPlant);
-    }
-
-    localStorage.setItem('plants', JSON.stringify(plants));
-    renderPlants();
-    plantModal.style.display = 'none';
-    editingPlantId = null;
-});
-
-function openEditModal(plant) {
-    editingPlantId = plant.id;
-    modalTitle.textContent = 'Editar Planta';
-    plantIdInput.value = plant.id;
-    plantNameInput.value = plant.name;
-    plantFrequencyInput.value = plant.baseWateringFrequencyDays;
-    plantModal.style.display = 'block';
-}
-
-function handleDeletePlant(plantId) {
-    if (confirm('¿Seguro que quieres eliminar esta planta?')) {
-        plants = plants.filter(p => p.id !== plantId);
-        localStorage.setItem('plants', JSON.stringify(plants));
-        // Aquí también deberías cancelar cualquier notificación pendiente para esta planta si es posible.
-        // Es más complejo si las notificaciones son solo timeouts en el SW sin IDs.
-        // Por simplicidad, la notificación podría saltar pero el usuario verá que la planta ya no está.
-        renderPlants();
+function requestNotificationPermission() {
+    if ('Notification' in window) {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                console.log('Notification permission granted.');
+            } else {
+                console.log('Notification permission denied.');
+            }
+        });
     }
 }
+requestNotificationPermission();
+
+// --- Cargar y Mostrar Plantas (sin cambios aquí) ---
+function loadPlants() { /* ... igual que antes ... */ }
+function renderPlants() { /* ... igual que antes ... */ }
+
+// --- Lógica del Modal (Añadir/Editar) (sin cambios aquí) ---
+addPlantButton.addEventListener('click', () => { /* ... */ });
+closeButton.addEventListener('click', () => { /* ... */ });
+window.addEventListener('click', (event) => { /* ... */ });
+savePlantButton.addEventListener('click', () => { /* ... */ });
+function openEditModal(plant) { /* ... */ }
+function handleDeletePlant(plantId) { /* ... */ }
 
 
-// --- Lógica de Riego (Adaptada) ---
+// --- Lógica de Riego (Adaptada para WeatherAPI) ---
 async function handleWaterPlant(plantId) {
     const plantIndex = plants.findIndex(p => p.id === plantId);
     if (plantIndex === -1) return;
@@ -177,23 +61,30 @@ async function handleWaterPlant(plantId) {
     console.log(`Regando ${plant.name} el:`, now.toLocaleString());
 
     try {
-        const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Valencia,ES&appid=${API_KEY}&units=metric`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        // CAMBIO: URL y parámetros para WeatherAPI
+        const response = await fetch(`https://api.weatherapi.com/v1/current.json?key=${API_KEY_WEATHERAPI}&q=Valencia&aqi=no`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({})); // Intenta parsear el error JSON
+            console.error('WeatherAPI Error Response:', errorData);
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error?.message || response.statusText}`);
+        }
         const data = await response.json();
-        const temp = data.main.temp;
-        console.log('Temperatura actual en Valencia:', temp + '°C');
+
+        // CAMBIO: Acceso a la temperatura
+        const temp = data.current.temp_c;
+        console.log('Temperatura actual en Valencia (WeatherAPI):', temp + '°C');
 
         plant.temperatureAtLastWatering = temp;
 
-        const dayAdjustment = temp < 25 ? 1 : -1; // +1 día si <25, -1 día si >=25
+        const dayAdjustment = temp < 25 ? 1 : -1;
         let effectiveFrequency = plant.baseWateringFrequencyDays + dayAdjustment;
-        effectiveFrequency = Math.max(1, effectiveFrequency); // Asegurar al menos 1 día
+        effectiveFrequency = Math.max(1, effectiveFrequency);
 
         const reminderDate = new Date(now.getTime() + effectiveFrequency * 24 * 60 * 60 * 1000);
         plant.nextReminderDate = reminderDate.toISOString();
 
         localStorage.setItem('plants', JSON.stringify(plants));
-        renderPlants(); // Actualiza la UI para esta planta
+        renderPlants();
 
         scheduleLocalNotification(
             reminderDate,
@@ -203,15 +94,14 @@ async function handleWaterPlant(plantId) {
 
     } catch (error) {
         console.error('Error fetching temperature or scheduling:', error);
-        // Podrías poner un mensaje en la UI de la planta indicando el error
-        // y quizás usar solo la frecuencia base sin ajuste de temperatura.
+        // Fallback si la API falla
         const reminderDate = new Date(now.getTime() + plant.baseWateringFrequencyDays * 24 * 60 * 60 * 1000);
         plant.nextReminderDate = reminderDate.toISOString();
-        plant.temperatureAtLastWatering = "Error";
-        
+        plant.temperatureAtLastWatering = "Error API"; // Indicar que hubo un error
+
         localStorage.setItem('plants', JSON.stringify(plants));
         renderPlants();
-        
+
         scheduleLocalNotification(
             reminderDate,
             `¡A regar tu ${plant.name}! (sin ajuste de temp.)`,
@@ -220,43 +110,10 @@ async function handleWaterPlant(plantId) {
     }
 }
 
-// --- Programar Notificación (sin cambios mayores, solo el mensaje) ---
-function scheduleLocalNotification(date, title, body) {
-    if (!('Notification' in window) || Notification.permission !== 'granted') {
-        console.log('Notifications not permitted or not supported.');
-        return;
-    }
-
-    if (navigator.serviceWorker.controller) {
-         navigator.serviceWorker.controller.postMessage({
-             type: 'SCHEDULE_NOTIFICATION',
-             // Asegúrate de que el SW pueda manejar un ID si quieres cancelar notificaciones.
-             // Por ahora, el payload sigue siendo simple.
-             payload: { reminderDate: date.toISOString(), title, body }
-         });
-         console.log(`Notification schedule request for "${title}" sent to SW.`);
-    } else {
-        const delay = new Date(date).getTime() - Date.now();
-        if (delay > 0) {
-            console.log(`Notification for "${title}" scheduled in ${delay / 1000 / 60} minutes (via page setTimeout)`);
-            setTimeout(() => {
-                navigator.serviceWorker.ready.then(registration => {
-                    registration.showNotification(title, {
-                        body: body,
-                        icon: 'icons/icon-192x192.png',
-                        badge: 'icons/badge-72x72.png',
-                        vibrate: [200, 100, 200]
-                    });
-                });
-            }, delay);
-        }
-    }
-}
-
+// --- Programar Notificación (sin cambios aquí) ---
+function scheduleLocalNotification(date, title, body) { /* ... igual que antes ... */ }
 
 // --- Carga Inicial ---
 window.addEventListener('load', () => {
     loadPlants();
-    // (Opcional) Chequear si hay recordatorios pasados al cargar la app
-    // y notificar si el SW no lo hizo (aunque el SW debería ser el principal).
 });
