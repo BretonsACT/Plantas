@@ -1,0 +1,47 @@
+/* style.css - Añadir al final o en una sección relevante */
+
+/* ... (otros estilos de .plant-card) ... */
+
+.plant-card.needs-water-urgent {
+    background-color: #ffebee; /* Un rojo muy pálido */
+    border-left: 5px solid #f44336; /* Borde rojo fuerte a la izquierda */
+}
+.plant-card.needs-water-urgent h2 {
+    color: #c62828; /* Título en rojo más oscuro */
+}
+
+.plant-card.needs-water-soon {
+    background-color: #fffde7; /* Un amarillo muy pálido */
+    border-left: 5px solid #FFC107; /* Borde amarillo fuerte a la izquierda */
+}
+.plant-card.needs-water-soon h2 {
+    color: #ff8f00; /* Título en naranja/amarillo oscuro */
+}
+
+/* Opcional: Estilos más intensos si lo prefieres */
+/*
+.plant-card.needs-water-urgent {
+    background-color: #f44336;
+    color: white;
+}
+.plant-card.needs-water-urgent h2,
+.plant-card.needs-water-urgent p,
+.plant-card.needs-water-urgent .water-button {
+    color: white;
+}
+.plant-card.needs-water-urgent .water-button {
+    background-color: #d32f2f;
+    border: 1px solid white;
+}
+
+.plant-card.needs-water-soon {
+    background-color: #FFC107;
+    color: #333;
+}
+.plant-card.needs-water-soon h2 {
+    color: #bf360c;
+}
+.plant-card.needs-water-soon .water-button {
+    background-color: #ffa000;
+}
+*/
