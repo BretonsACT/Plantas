@@ -16,6 +16,8 @@ const plantPhotoInput = document.getElementById('plantPhotoInput'); // Input for
 let plants = []; // Array to store plant objects
 let editingPlantId = null; // To track if we are editing an existing plant
 let nutritionLog = []; // Array to store nutrition log entries
+let lastGlobalNutritionDate = null;
+let lastGlobalVitaminDate = null;
 
 // --- Service Worker and Notifications ---
 if ('serviceWorker' in navigator) {
@@ -386,9 +388,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     requestNotificationPermission(); // Ask for permission early or at a more opportune time
     loadPlants(); // Load existing plants from localStorage and render them
     loadNutritionLog(); // Load nutrition log from localStorage
+    renderGlobalNutritionSummary(); // ADDED - Initial render of global nutrition summary
     await checkAndScheduleGeneralNutritionReminder(); // UPDATED
     await checkAndScheduleVitaminReminder(); // ADDED
-    populatePlantSelect(); // Populate the plant select dropdown in the nutrition tab
+    // populatePlantSelect(); // Populate the plant select dropdown in the nutrition tab - REMOVED
 
     // --- Nutrition Form Event Listener ---
     const nutritionForm = document.getElementById('nutritionForm');
@@ -420,61 +423,75 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (activeTabContent) {
                 activeTabContent.classList.add('active');
                 activeTabContent.style.display = 'block'; // Or 'flex', etc. as needed
-                if (tabId === 'nutritionTab') {
-                    populatePlantSelect(); // Refresh plant list in select when tab is shown
-                    renderVitaminSummary(); // ADDED - Update summary when tab is shown
-                }
+                // if (tabId === 'nutritionTab') { // REMOVED populatePlantSelect and renderVitaminSummary
+                //     populatePlantSelect(); 
+                //     renderVitaminSummary(); 
+                // }
             }
         });
     });
+
+    // --- Quick Log Nutrient Button Event Listener ---
+    const quickLogNutrientButton = document.getElementById('quickLogNutrientButton');
+    if (quickLogNutrientButton) {
+        quickLogNutrientButton.addEventListener('click', () => {
+            // Deactivate current active tab & content
+            const currentActiveButton = document.querySelector('.tab-button.active');
+            const currentActiveContent = document.querySelector('.tab-content.active');
+            if (currentActiveButton) currentActiveButton.classList.remove('active');
+            if (currentActiveContent) {
+                currentActiveContent.style.display = 'none';
+                currentActiveContent.classList.remove('active');
+            }
+
+            // Activate nutrition tab
+            const nutritionTabButton = document.querySelector('.tab-button[data-tab="nutritionTab"]');
+            const nutritionTabContent = document.getElementById('nutritionTab');
+            if (nutritionTabButton) nutritionTabButton.classList.add('active');
+            if (nutritionTabContent) {
+                nutritionTabContent.classList.add('active');
+                nutritionTabContent.style.display = 'block'; // Or 'flex', etc.
+            }
+        });
+    } else {
+        console.error("Quick Log Nutrient Button not found");
+    }
 });
 
 // --- Nutrition Log Functions ---
-function renderVitaminSummary() {
-    const summaryContainer = document.getElementById('vitaminSummaryContainer');
-    if (!summaryContainer) {
-        console.error("Vitamin summary container not found.");
-        return;
+function renderGlobalNutritionSummary() {
+    const nutritionDateDisplay = document.getElementById('lastGlobalNutritionDateDisplay');
+    const vitaminDateDisplay = document.getElementById('lastGlobalVitaminDateDisplay');
+
+    if (nutritionDateDisplay) {
+        nutritionDateDisplay.textContent = lastGlobalNutritionDate 
+            ? new Date(lastGlobalNutritionDate).toLocaleDateString() 
+            : 'Nunca';
     }
-
-    if (plants.length === 0) {
-        summaryContainer.innerHTML = '<p>No hay plantas añadidas para mostrar resumen de vitaminas.</p>';
-        return;
+    if (vitaminDateDisplay) {
+        vitaminDateDisplay.textContent = lastGlobalVitaminDate 
+            ? new Date(lastGlobalVitaminDate).toLocaleDateString() 
+            : 'Nunca';
     }
-
-    let summaryHTML = '<h2>Resumen de Última Aplicación de Vitaminas</h2><ul>';
-
-    plants.forEach(plant => {
-        const plantVitaminEntries = nutritionLog
-            .filter(entry => entry.plantId === plant.id && entry.type === 'vitaminas')
-            .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date descending
-
-        let lastVitaminDate = 'Nunca aplicadas';
-        if (plantVitaminEntries.length > 0) {
-            lastVitaminDate = `el ${new Date(plantVitaminEntries[0].date).toLocaleDateString()}`;
-        }
-        summaryHTML += `<li><strong>${plant.name}:</strong> Última aplicación de vitaminas ${lastVitaminDate}.</li>`;
-    });
-
-    summaryHTML += '</ul>';
-    summaryContainer.innerHTML = summaryHTML;
 }
+// function renderVitaminSummary() { ... } // REMOVED
 
-
-function populatePlantSelect() {
+function populatePlantSelect() { // This function might become orphaned. Will review later.
     const selectElement = document.getElementById('nutritionPlantSelect');
     if (!selectElement) {
-        console.error("Nutrition plant select element not found.");
+        // This is expected now as the element is removed from HTML
+        // console.error("Nutrition plant select element not found."); 
         return;
     }
-    const currentPlantId = selectElement.value; // Preserve selection if possible (e.g., after adding entry)
-    selectElement.innerHTML = ''; // Clear existing options
+    // ... rest of the function remains for now, though it won't be called in nutrition context
+    const currentPlantId = selectElement.value; 
+    selectElement.innerHTML = ''; 
 
     const defaultOption = document.createElement('option');
     defaultOption.textContent = 'Seleccionar planta...';
     defaultOption.value = '';
     defaultOption.disabled = true;
-    defaultOption.selected = !currentPlantId; // Select if no plant was previously selected
+    defaultOption.selected = !currentPlantId; 
     selectElement.appendChild(defaultOption);
 
     if (plants.length === 0) {
@@ -488,7 +505,7 @@ function populatePlantSelect() {
             option.value = plant.id;
             option.textContent = plant.name;
             if (plant.id === currentPlantId) {
-                option.selected = true; // Restore previous selection
+                option.selected = true; 
             }
             selectElement.appendChild(option);
         });
@@ -499,29 +516,42 @@ function loadNutritionLog() {
     const storedLog = localStorage.getItem('nutritionLog');
     if (storedLog) {
         nutritionLog = JSON.parse(storedLog);
+        if (nutritionLog.length > 0) {
+            const sortedLog = [...nutritionLog].sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Find the most recent overall nutrition application
+            if (sortedLog.length > 0) {
+                lastGlobalNutritionDate = sortedLog[0].date;
+            }
+            // Find the most recent vitamin application
+            const lastVitamin = sortedLog.find(entry => entry.type === 'vitaminas');
+            if (lastVitamin) {
+                lastGlobalVitaminDate = lastVitamin.date;
+            }
+        }
     }
     renderNutritionLog();
+    renderGlobalNutritionSummary(); // ADDED - Update summary after loading
 }
 
 async function saveNutritionEntry(event) {
     event.preventDefault(); // Prevent default form submission
 
-    const plantId = document.getElementById('nutritionPlantSelect').value;
+    // const plantId = document.getElementById('nutritionPlantSelect').value; // REMOVED
     const date = document.getElementById('nutritionDate').value;
     const type = document.getElementById('nutritionType').value;
     const notes = document.getElementById('nutritionNotes').value.trim();
 
-    if (!plantId || !date) {
-        alert('Por favor, selecciona una planta y una fecha.');
+    if (!date) { // MODIFIED: Only date is mandatory now
+        alert('Por favor, selecciona una fecha.');
         return;
     }
 
-    const plantName = plants.find(p => p.id === plantId)?.name || 'Nombre Desconocido';
+    // const plantName = plants.find(p => p.id === plantId)?.name || 'Nombre Desconocido'; // REMOVED
 
     const newEntry = {
         id: 'nutri_' + Date.now(),
-        plantId: plantId,
-        plantName: plantName,
+        // plantId: plantId, // REMOVED
+        // plantName: plantName, // REMOVED
         date: date,
         type: type,
         notes: notes
@@ -529,12 +559,20 @@ async function saveNutritionEntry(event) {
 
     nutritionLog.push(newEntry);
     localStorage.setItem('nutritionLog', JSON.stringify(nutritionLog));
+
+    // Update global timestamps
+    lastGlobalNutritionDate = newEntry.date;
+    if (newEntry.type === 'vitaminas') {
+        lastGlobalVitaminDate = newEntry.date;
+    }
+
     renderNutritionLog();
-    renderVitaminSummary(); // ADDED - Update summary after saving new entry
+    renderGlobalNutritionSummary(); // ADDED - Update summary after saving new entry
+    // renderVitaminSummary(); // REMOVED
     document.getElementById('nutritionForm').reset();
-    populatePlantSelect(); // Repopulate to reset selection to default/placeholder
-    await checkAndScheduleGeneralNutritionReminder(); // UPDATED
-    await checkAndScheduleVitaminReminder(); // ADDED
+    // populatePlantSelect(); // REMOVED
+    await checkAndScheduleGeneralNutritionReminder(); 
+    await checkAndScheduleVitaminReminder(); 
 }
 
 function renderNutritionLog() {
@@ -561,7 +599,8 @@ function renderNutritionLog() {
         }
 
         const title = document.createElement('h3');
-        title.textContent = `${entry.plantName} - ${new Date(entry.date).toLocaleDateString()}`;
+        // MODIFIED: Display a global entry title
+        title.textContent = `Nutrientes Aplicados: ${new Date(entry.date).toLocaleDateString()}`;
         entryDiv.appendChild(title);
 
         const typeP = document.createElement('p');
@@ -589,69 +628,64 @@ async function checkAndScheduleGeneralNutritionReminder() { // RENAMED
         return;
     }
 
-    const generalNutritionLog = nutritionLog.filter(entry => entry.type !== 'vitaminas'); // Exclude 'vitaminas'
-
-    if (generalNutritionLog.length === 0) {
-        console.log('General nutrition log is empty. No general reminder to schedule.');
+    // MODIFIED: Use global lastGlobalNutritionDate, excluding vitamin-specific entries
+    if (!lastGlobalNutritionDate || nutritionLog.filter(e => e.type !== 'vitaminas').length === 0) {
+        console.log('No general nutrition applications found or lastGlobalNutritionDate is not set. No general reminder to schedule.');
         return;
     }
+    
+    // Find the last non-vitamin entry to get its type for the message
+    const nonVitaminLog = nutritionLog.filter(entry => entry.type !== 'vitaminas').sort((a,b) => new Date(b.date) - new Date(a.date));
+    const lastNonVitaminEntryDetails = nonVitaminLog.length > 0 ? nonVitaminLog[0] : {type: 'nutrición general', date: lastGlobalNutritionDate};
 
-    // Sort by date descending to find the most recent non-vitamin entry
-    const sortedLog = generalNutritionLog.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const lastNonVitaminEntry = sortedLog[0];
 
-    const lastApplicationDate = new Date(lastNonVitaminEntry.date);
+    const lastApplicationDate = new Date(lastNonVitaminEntryDetails.date); // Use the date of the specific last non-vitamin entry
     const reminderDate = new Date(lastApplicationDate);
-    reminderDate.setMonth(reminderDate.getMonth() + 1);
-    reminderDate.setHours(10, 0, 0, 0); // Set reminder for 10 AM
+    reminderDate.setMonth(reminderDate.getMonth() + 1); 
+    reminderDate.setHours(10, 0, 0, 0);
 
     if (reminderDate > new Date()) {
-        const tag = `general-nutrition-reminder-${lastNonVitaminEntry.plantId}-${new Date(reminderDate).getTime()}`;
+        const tag = `global-general-nutrition-reminder-${new Date(reminderDate).getTime()}`; // MODIFIED tag
         scheduleLocalNotification(
             reminderDate,
-            'Recordatorio de Nutrición General 🌿', // Updated title
-            `Ha pasado aproximadamente un mes desde la última aplicación de ${lastNonVitaminEntry.type} a ${lastNonVitaminEntry.plantName} el ${new Date(lastNonVitaminEntry.date).toLocaleDateString()}. ¡Considera revisar tus plantas!`,
-            tag // ADDED tag
+            'Recordatorio de Nutrición General Global 🌿', 
+            `Ha pasado aproximadamente un mes desde la última aplicación de ${lastNonVitaminEntryDetails.type} el ${new Date(lastNonVitaminEntryDetails.date).toLocaleDateString()}. ¡Considera nutrir tus plantas!`, // MODIFIED message
+            tag
         );
-        console.log(`General nutrition reminder scheduled for ${lastNonVitaminEntry.plantName}: ${reminderDate.toLocaleString()}`);
+        console.log(`Global general nutrition reminder scheduled: ${reminderDate.toLocaleString()}`);
     } else {
-        console.log(`General nutrition reminder date for ${lastNonVitaminEntry.plantName} is in the past or not applicable.`);
+        console.log(`Global general nutrition reminder date is in the past or not applicable.`);
     }
 }
 
-async function checkAndScheduleVitaminReminder() { // NEW function
+async function checkAndScheduleVitaminReminder() { 
     if (Notification.permission !== 'granted') {
         console.log('Notification permission not granted for vitamin reminder.');
         return;
     }
 
-    const vitaminLog = nutritionLog.filter(entry => entry.type === 'vitaminas');
-
-    if (vitaminLog.length === 0) {
-        console.log('Vitamin log is empty. No vitamin reminder to schedule.');
+    // MODIFIED: Use global lastGlobalVitaminDate
+    if (!lastGlobalVitaminDate) {
+        console.log('lastGlobalVitaminDate is not set. No vitamin reminder to schedule.');
         return;
     }
 
-    // Sort by date descending to find the most recent vitamin entry
-    const sortedLog = vitaminLog.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const lastVitaminEntry = sortedLog[0];
-
-    const lastApplicationDate = new Date(lastVitaminEntry.date);
+    const lastApplicationDate = new Date(lastGlobalVitaminDate);
     const reminderDate = new Date(lastApplicationDate);
     reminderDate.setDate(reminderDate.getDate() + (4 * 7)); // Add 4 weeks
-    reminderDate.setHours(10, 0, 0, 0); // Set reminder for 10 AM
+    reminderDate.setHours(10, 0, 0, 0); 
 
     if (reminderDate > new Date()) {
-        const tag = `vitamin-reminder-${lastVitaminEntry.plantId}-${new Date(reminderDate).getTime()}`;
+        const tag = `global-vitamin-reminder-${new Date(reminderDate).getTime()}`; // MODIFIED tag
         scheduleLocalNotification(
             reminderDate,
-            `Recordatorio de Vitaminas 🌿`, // Title
-            `Es momento de aplicar vitaminas a tu ${lastVitaminEntry.plantName}. Última aplicación de vitaminas el ${new Date(lastVitaminEntry.date).toLocaleDateString()}.`, // Body
-            tag // ADDED tag
+            `Recordatorio Global de Vitaminas ✨`, // MODIFIED title
+            `Han pasado aproximadamente 4 semanas desde la última aplicación global de vitaminas el ${new Date(lastGlobalVitaminDate).toLocaleDateString()}.`, // MODIFIED message
+            tag
         );
-        console.log(`Vitamin reminder scheduled for ${lastVitaminEntry.plantName}: ${reminderDate.toLocaleString()}`);
+        console.log(`Global vitamin reminder scheduled: ${reminderDate.toLocaleString()}`);
     } else {
-        console.log(`Vitamin reminder date for ${lastVitaminEntry.plantName} is in the past or not applicable.`);
+        console.log(`Global vitamin reminder date is in the past or not applicable.`);
     }
 }
 
