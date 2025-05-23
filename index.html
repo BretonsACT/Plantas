@@ -12,37 +12,82 @@
 </head>
 <body>
     <div class="container">
-        <h1>Mis Plantas</h1>
-        <button id="addPlantButton">➕ Añadir Nueva Planta</button>
-
-        <div id="plantsList">
-            <!-- Las plantas se insertarán aquí por JS -->
-            <!-- Ejemplo de cómo se vería una planta:
-            <div class="plant-card" data-id="plant_id_example">
-                <h2>Nombre de la Planta</h2>
-                <p class="last-watered">Último riego: Nunca</p>
-                <p class="next-reminder">Próximo aviso: Pendiente</p>
-                <p class="base-frequency">Frecuencia base: X días</p>
-                <button class="water-button">💧 Regada Hoy</button>
-                <button class="edit-plant-button">✏️</button>
-                <button class="delete-plant-button">🗑️</button>
-            </div>
-            -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="plantsTab">Mis Plantas</button>
+            <button class="tab-button" data-tab="nutritionTab">Nutrición</button>
         </div>
 
-        <!-- Modal para Añadir/Editar Planta (inicialmente oculto) -->
-        <div id="plantModal" class="modal" style="display:none;">
-            <div class="modal-content">
-                <span class="close-button">&times;</span>
-                <h2 id="modalTitle">Añadir Nueva Planta</h2>
-                <input type="hidden" id="plantIdInput"> <!-- Para editar -->
-                <label for="plantName">Nombre:</label>
-                <input type="text" id="plantName" required><br><br>
-                <label for="plantFrequency">Frecuencia de Riego Base (días):</label>
-                <input type="number" id="plantFrequency" min="1" required><br><br>
-                <!-- <label for="plantPhoto">Foto (opcional):</label>
-                <input type="file" id="plantPhoto" accept="image/*"><br><br> -->
-                <button id="savePlantButton">Guardar Planta</button>
+        <div id="plantsTab" class="tab-content active">
+            <h1>Mis Plantas</h1>
+            <button id="addPlantButton">➕ Añadir Nueva Planta</button>
+
+            <div id="plantsList">
+                <!-- Las plantas se insertarán aquí por JS -->
+                <!-- Ejemplo de cómo se vería una planta:
+                <div class="plant-card" data-id="plant_id_example">
+                    <h2>Nombre de la Planta</h2>
+                    <p class="last-watered">Último riego: Nunca</p>
+                    <p class="next-reminder">Próximo aviso: Pendiente</p>
+                    <p class="base-frequency">Frecuencia base: X días</p>
+                    <button class="water-button">💧 Regada Hoy</button>
+                    <button class="edit-plant-button">✏️</button>
+                    <button class="delete-plant-button">🗑️</button>
+                </div>
+                -->
+            </div>
+
+            <!-- Modal para Añadir/Editar Planta (inicialmente oculto) -->
+            <div id="plantModal" class="modal" style="display:none;">
+                <div class="modal-content">
+                    <span class="close-button">&times;</span>
+                    <h2 id="modalTitle">Añadir Nueva Planta</h2>
+                    <input type="hidden" id="plantIdInput"> <!-- Para editar -->
+                    <label for="plantName">Nombre:</label>
+                    <input type="text" id="plantName" required><br><br>
+                    <label for="plantFrequency">Frecuencia de Riego Base (días):</label>
+                    <input type="number" id="plantFrequency" min="1" required><br><br>
+                    <label for="plantPhotoInput">Foto (opcional):</label>
+                    <input type="file" id="plantPhotoInput" accept="image/*"><br><br>
+                    <button id="savePlantButton">Guardar Planta</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="nutritionTab" class="tab-content" style="display:none;">
+            <h1>Registro de Nutrición</h1>
+            <div class="nutrition-form-container">
+                <h2>Añadir Registro de Nutrición</h2>
+                <form id="nutritionForm">
+                    <div>
+                        <label for="nutritionPlantSelect">Planta:</label>
+                        <select id="nutritionPlantSelect" required></select>
+                    </div>
+                    <div>
+                        <label for="nutritionDate">Fecha de Aplicación:</label>
+                        <input type="date" id="nutritionDate" required>
+                    </div>
+                    <div>
+                        <label for="nutritionType">Tipo:</label>
+                        <select id="nutritionType" required>
+                            <option value="potasa">Potasa</option>
+                            <option value="vitaminas">Vitaminas</option>
+                            <option value="fertilizante_general">Fertilizante General</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="nutritionNotes">Notas (opcional):</label>
+                        <textarea id="nutritionNotes" rows="3"></textarea>
+                    </div>
+                    <button type="submit" id="saveNutritionEntryButton">Guardar Registro</button>
+                </form>
+            </div>
+
+            <div class="nutrition-log-container">
+                <h2>Historial de Nutrición</h2>
+                <div id="nutritionLogList">
+                    <!-- Las entradas del historial se insertarán aquí -->
+                </div>
             </div>
         </div>
     </div>

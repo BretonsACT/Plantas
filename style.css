@@ -11,8 +11,8 @@
     --card-background: #ffffff;
     --text-color: #333333;
     --light-text-color: #ffffff;
-    --border-color: #e0e0e0;
-    --shadow-color: rgba(0, 0, 0, 0.1);
+    --border-color: #e8e8e8; /* Lighter shade of gray */
+    --shadow-color: rgba(0, 0, 0, 0.08); /* Softer shadow */
     --danger-color: #f44336; /* Rojo para eliminar */
     --edit-color: #2196F3; /* Azul para editar */
 }
@@ -26,7 +26,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    line-height: 1.6;
+    line-height: 1.7; /* Adjusted line-height */
     background-color: var(--background-color);
     color: var(--text-color);
     padding: 20px;
@@ -45,7 +45,41 @@ body {
     box-shadow: 0 2px 10px var(--shadow-color);
 }
 
-h1 {
+/* --- Tab Styles --- */
+.tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+}
+.tab-button {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    font-size: 1em;
+    color: var(--text-color); /* Or a muted color */
+    border-bottom: 3px solid transparent; /* For active indicator */
+    margin-bottom: -2px; /* Align with container's border-bottom */
+    transition: background-color 0.3s ease, color 0.3s ease, border-bottom-color 0.3s ease;
+}
+.tab-button.active {
+    color: var(--primary-color);
+    border-bottom: 3px solid var(--primary-color);
+    font-weight: bold;
+}
+.tab-button:hover:not(.active) {
+    background-color: #f0f0f0; /* Light hover for non-active tabs */
+    color: var(--primary-color);
+}
+.tab-content {
+     /* display: none; /* JS will handle this, but good default, HTML already sets display:none for inactive */
+}
+.tab-content.active {
+    display: block; /* Or flex, grid, etc., depending on content */
+}
+
+/* Ensure h1 within tab content is styled correctly */
+.tab-content h1 {
     color: var(--primary-color);
     text-align: center;
     margin-bottom: 30px;
@@ -64,7 +98,7 @@ button {
     border: none;
     border-radius: 5px;
     font-size: 1em;
-    transition: background-color 0.3s ease, transform 0.1s ease;
+    transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease; /* Added box-shadow transition */
 }
 
 button:active {
@@ -79,11 +113,12 @@ button:active {
     width: fit-content;
     margin: 0 auto 30px auto;
     font-size: 1.1em;
-    box-shadow: 0 2px 5px var(--shadow-color);
+    box-shadow: 0 2px 5px var(--shadow-color); /* Initial shadow */
 }
 
 #addPlantButton:hover {
     background-color: var(--secondary-color);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); /* Enhanced shadow on hover */
 }
 
 /* --- Lista de Plantas --- */
@@ -96,9 +131,9 @@ button:active {
 .plant-card {
     background-color: var(--card-background);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 12px; /* Increased border-radius */
     padding: 20px;
-    box-shadow: 0 1px 6px var(--shadow-color);
+    box-shadow: 0 2px 8px var(--shadow-color); /* Softer box-shadow */
     display: flex;
     flex-direction: column;
     gap: 12px; /* Espacio entre elementos dentro de la tarjeta */
@@ -120,16 +155,27 @@ button:active {
 .plant-card .next-reminder,
 .plant-card .base-frequency,
 .plant-card .temp-info {
-    padding: 5px;
-    border-left: 3px solid var(--secondary-color);
-    background-color: #f9f9f9;
-    border-radius: 0 4px 4px 0;
+    padding: 8px; /* Increased padding */
+    border-left: none; /* Removed border-left */
+    background-color: #f0f4f8; /* New background-color */
+    border-radius: 4px; /* Adjusted border-radius for consistency */
 }
 
 .plant-card .temp-info {
     font-style: italic;
     font-size: 0.85em;
     color: #777;
+}
+
+/* --- Estilos para la Foto de la Planta en la Tarjeta --- */
+.plant-card img {
+    max-width: 100%;
+    height: auto; /* Mantener la proporción, pero object-fit y max-height lo controlarán */
+    max-height: 180px; /* Límite de altura para la imagen */
+    object-fit: cover; /* Asegura que la imagen cubra el espacio sin distorsionarse */
+    border-radius: 8px; /* Bordes redondeados consistentes */
+    margin-bottom: 15px; /* Espacio debajo de la imagen */
+    display: block; /* Asegura que el margen funcione correctamente */
 }
 
 /* --- Botones dentro de la Tarjeta de Planta --- */
@@ -195,7 +241,7 @@ button:active {
     border-radius: 8px;
     width: 90%;
     max-width: 500px; /* Ancho máximo del contenido del modal */
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); /* Softer box-shadow for modal */
     position: relative; /* Para el botón de cerrar */
     animation: fadeInModal 0.3s ease-out;
 }
@@ -252,6 +298,26 @@ button:active {
     box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
 }
 
+/* Estilo para el input de la foto en el modal */
+.modal-content input#plantPhotoInput {
+    width: 100%; /* Asegura que ocupe el ancho disponible */
+    padding: 10px; /* Un poco de padding para que no se vea tan pegado */
+    margin-top: 5px; /* Espacio arriba */
+    margin-bottom: 20px; /* Mantiene el espaciado consistente con otros inputs */
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9em; /* Tamaño de fuente ligeramente más pequeño para el nombre del archivo */
+    display: block; /* Asegura que ocupe su propia línea */
+    /* Nota: La apariencia del botón "Choose File" es difícil de estilar directamente con CSS de forma cross-browser.
+       Esto proporciona un espaciado y borde básico. */
+}
+.modal-content input#plantPhotoInput:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2); /* Consistente con otros inputs */
+}
+
+
 #savePlantButton {
     background-color: var(--primary-color);
     color: var(--light-text-color);
@@ -260,10 +326,12 @@ button:active {
     padding: 12px;
     font-size: 1.1em;
     margin-top: 10px;
+    box-shadow: 0 2px 5px var(--shadow-color); /* Initial shadow, consistent with addPlantButton */
 }
 
 #savePlantButton:hover {
     background-color: var(--secondary-color);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); /* Enhanced shadow on hover */
 }
 
 /* --- Mensaje cuando no hay plantas --- */
@@ -345,6 +413,109 @@ button:active {
 .plant-card.needs-water-soon h2 {
     color: #ff8f00; /* Título en naranja/amarillo oscuro */
 }
+
+/* --- Nutrition Tab Styles --- */
+.nutrition-form-container,
+.nutrition-log-container {
+    background-color: #f9f9f9; /* Slightly different background for sections */
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.nutrition-form-container h2,
+.nutrition-log-container h2 {
+    text-align: center;
+    color: var(--primary-color);
+    margin-bottom: 20px;
+}
+
+#nutritionForm div {
+    margin-bottom: 15px;
+}
+
+#nutritionForm label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #444;
+}
+
+#nutritionForm select,
+#nutritionForm input[type="date"],
+#nutritionForm textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1em;
+    font-family: inherit; /* Ensure consistent font */
+}
+
+#nutritionForm textarea {
+    resize: vertical; /* Allow vertical resize, disable horizontal */
+    min-height: 60px;
+}
+
+#nutritionForm select:focus,
+#nutritionForm input[type="date"]:focus,
+#nutritionForm textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+#saveNutritionEntryButton {
+    background-color: var(--primary-color);
+    color: var(--light-text-color);
+    display: block;
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1em;
+    margin-top: 10px;
+    box-shadow: 0 2px 5px var(--shadow-color);
+}
+
+#saveNutritionEntryButton:hover {
+    background-color: var(--secondary-color);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.nutrition-entry {
+    background-color: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 3px var(--shadow-color);
+}
+
+.nutrition-entry h3 {
+    color: var(--secondary-color); /* Slightly different color for entry titles */
+    font-size: 1.1em;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.nutrition-entry p {
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 5px;
+    line-height: 1.5;
+}
+
+.nutrition-entry p strong {
+    color: #333;
+}
+
+#nutritionLogList p:only-child { /* Style for "No entries" message */
+    text-align: center;
+    font-style: italic;
+    color: #777;
+    padding: 15px 0;
+}
+
 
 /* Opcional: Estilos más intensos si lo prefieres */
 /*
