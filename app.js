@@ -78,46 +78,43 @@ function renderPlants() {
             plantCard.appendChild(imgEl); // Insert photo at the beginning of the card or after name
         }
 
-        const lastWateredEl = document.createElement('p');
-        lastWateredEl.classList.add('last-watered');
-        lastWateredEl.textContent = `Último riego: ${plant.lastWateredDate ? new Date(plant.lastWateredDate).toLocaleString() : 'Nunca'}`;
+        const lastWateredText = plant.lastWateredDate ? new Date(plant.lastWateredDate).toLocaleDateString() : 'Nunca';
+        const nextReminderText = plant.nextReminderDate ? new Date(plant.nextReminderDate).toLocaleDateString() : 'Pendiente';
 
-        const nextReminderEl = document.createElement('p');
-        nextReminderEl.classList.add('next-reminder');
-        nextReminderEl.textContent = `Próximo aviso: ${plant.nextReminderDate ? new Date(plant.nextReminderDate).toLocaleString() : 'Pendiente'}`;
+        const wateringInfoEl = document.createElement('p');
+        wateringInfoEl.classList.add('watering-info');
+        wateringInfoEl.textContent = `Riego: ${lastWateredText} / Próximo: ${nextReminderText}`;
 
         const baseFreqEl = document.createElement('p');
         baseFreqEl.classList.add('base-frequency');
-        baseFreqEl.textContent = `Frecuencia base: ${plant.baseWateringFrequencyDays} días`;
+        baseFreqEl.textContent = `Frec. base: ${plant.baseWateringFrequencyDays} días`; // Shorter label
 
         const tempInfoEl = document.createElement('p');
         tempInfoEl.classList.add('temp-info');
         if (plant.temperatureAtLastWatering !== null && plant.temperatureAtLastWatering !== "Error API") {
-            tempInfoEl.textContent = `Max Temp. Previsto (ciclo): ${plant.temperatureAtLastWatering}°C`;
+            tempInfoEl.textContent = `Max Temp (ciclo): ${plant.temperatureAtLastWatering}°C`; // Shorter label
         } else if (plant.temperatureAtLastWatering === "Error API") {
-            tempInfoEl.textContent = `Max Temp. Previsto (ciclo): Error al obtener`;
+            tempInfoEl.textContent = `Max Temp (ciclo): Error API`; // Shorter label
         }
 
 
         const waterButton = document.createElement('button');
         waterButton.classList.add('water-button');
-        waterButton.textContent = '💧 Regada Hoy';
+        waterButton.textContent = '💧 Regada'; // Shorter label
         waterButton.addEventListener('click', () => handleWaterPlant(plant.id));
 
         const editButton = document.createElement('button');
         editButton.classList.add('edit-plant-button');
-        editButton.textContent = '✏️ Editar';
-        editButton.addEventListener('click', () => openEditModal(plant));
+        editButton.textContent = '✏️'; // Icon only
+        editButton.title = 'Editar'; // Tooltip for accessibility
 
         const deleteButton = document.createElement('button');
         deleteButton.classList.add('delete-plant-button');
-        deleteButton.textContent = '🗑️ Eliminar';
-        deleteButton.addEventListener('click', () => handleDeletePlant(plant.id));
+        deleteButton.textContent = '🗑️'; // Icon only
+        deleteButton.title = 'Eliminar'; // Tooltip for accessibility
 
         plantCard.appendChild(nameEl);
-        // Optional: Add plant.photo rendering here if implemented
-        plantCard.appendChild(lastWateredEl);
-        plantCard.appendChild(nextReminderEl);
+        plantCard.appendChild(wateringInfoEl);
         plantCard.appendChild(baseFreqEl);
         plantCard.appendChild(tempInfoEl);
         plantCard.appendChild(waterButton);
@@ -248,19 +245,34 @@ async function handleWaterPlant(plantId) {
     console.log(`Watering ${plant.name} on:`, now.toLocaleString());
 
     try {
-        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${API_KEY_WEATHERAPI}&q=Valencia&days=1&aqi=no&alerts=no`);
+        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${API_KEY_WEATHERAPI}&q=Valencia&days=2&aqi=no&alerts=no`);
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: "Failed to parse error response" }));
             throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorData.error?.message || response.statusText}`);
         }
         const data = await response.json();
-        console.log('WeatherAPI Forecast Response:', data); // Good for debugging
+        console.log('WeatherAPI Forecast Response (2-day):', data); // Good for debugging
 
-        if (!data.forecast || !data.forecast.forecastday || !data.forecast.forecastday[0] || !data.forecast.forecastday[0].day || typeof data.forecast.forecastday[0].day.maxtemp_c === 'undefined') {
-            throw new Error('Max temperature data (maxtemp_c) not found in WeatherAPI forecast response.');
+        let maxTemp;
+        let tempSource = "today"; // To log the source of temperature
+
+        // Try to get tomorrow's forecast
+        if (data.forecast && data.forecast.forecastday && data.forecast.forecastday[1] && data.forecast.forecastday[1].day && typeof data.forecast.forecastday[1].day.maxtemp_c !== 'undefined') {
+            maxTemp = data.forecast.forecastday[1].day.maxtemp_c;
+            tempSource = "tomorrow's forecast";
+            console.log(`Forecasted Max Temperature for ${tempSource} in Valencia (WeatherAPI):`, maxTemp + '°C');
+        } 
+        // Fallback to today's forecast if tomorrow's is not available
+        else if (data.forecast && data.forecast.forecastday && data.forecast.forecastday[0] && data.forecast.forecastday[0].day && typeof data.forecast.forecastday[0].day.maxtemp_c !== 'undefined') {
+            maxTemp = data.forecast.forecastday[0].day.maxtemp_c;
+            tempSource = "today's forecast (fallback)";
+            console.warn(`Tomorrow's forecast not available. Using ${tempSource} in Valencia (WeatherAPI):`, maxTemp + '°C');
+        } 
+        // If neither is available, throw an error
+        else {
+            throw new Error('Max temperature data (maxtemp_c) not found in WeatherAPI forecast response for today or tomorrow.');
         }
-        const maxTemp = data.forecast.forecastday[0].day.maxtemp_c;
-        console.log('Forecasted Max Temperature in Valencia (WeatherAPI):', maxTemp + '°C');
+        
         plant.temperatureAtLastWatering = maxTemp; // Store forecasted max temp
 
         const dayAdjustment = maxTemp < 25 ? 1 : -1; // If maxTemp < 25, add 1 day, else subtract 1 day
@@ -273,7 +285,7 @@ async function handleWaterPlant(plantId) {
         scheduleLocalNotification(
             reminderDate,
             `¡A regar tu ${plant.name}!`,
-            `Es hora de regar tu ${plant.name}. Max Temp. previsto: ${maxTemp}°C. (Base: ${plant.baseWateringFrequencyDays} días, Ajustado: ${effectiveFrequency} días)`
+            `Es hora de regar tu ${plant.name}. Max Temp. (${tempSource}): ${maxTemp}°C. (Base: ${plant.baseWateringFrequencyDays} días, Ajustado: ${effectiveFrequency} días)`
         );
 
     } catch (error) {
@@ -287,8 +299,8 @@ async function handleWaterPlant(plantId) {
         
         scheduleLocalNotification(
             reminderDate,
-            `¡A regar tu ${plant.name}! (sin ajuste de temp.)`,
-            `Es hora de regar tu ${plant.name}. No se pudo obtener la temperatura.`
+            `¡A regar tu ${plant.name}! (Error API Temp)`,
+            `Es hora de regar tu ${plant.name}. No se pudo obtener la temperatura. Usando frecuencia base.`
         );
     } finally {
         // Always save plants array and re-render, regardless of API success/failure for watering part
@@ -298,7 +310,7 @@ async function handleWaterPlant(plantId) {
 }
 
 // --- Schedule Local Notification ---
-function scheduleLocalNotification(date, title, body) {
+function scheduleLocalNotification(date, title, body, tag = `notification-${new Date(date).getTime()}`) { // ADDED tag parameter with default
     if (!('Notification' in window) || Notification.permission !== 'granted') {
         console.log('Notifications not permitted or not supported. Reminder not scheduled.');
         // Optionally alert the user here if they expected a notification
@@ -312,11 +324,11 @@ function scheduleLocalNotification(date, title, body) {
             payload: {
                 reminderDate: date.toISOString(), // Send as ISO string
                 title,
-                body
-                // tag: `plant-reminder-${new Date(date).getTime()}` // Optional: for managing/canceling later
+                body,
+                tag // Use the provided or generated tag
             }
         });
-        console.log(`Notification schedule request for "${title}" sent to SW.`);
+        console.log(`Notification schedule request for "${title}" with tag "${tag}" sent to SW.`);
     } else {
         // Fallback if SW is not active (less reliable if page closes)
         const delay = new Date(date).getTime() - Date.now();
@@ -374,7 +386,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     requestNotificationPermission(); // Ask for permission early or at a more opportune time
     loadPlants(); // Load existing plants from localStorage and render them
     loadNutritionLog(); // Load nutrition log from localStorage
-    await checkAndScheduleNutritionReminder(); // Check and schedule nutrition reminder on load
+    await checkAndScheduleGeneralNutritionReminder(); // UPDATED
+    await checkAndScheduleVitaminReminder(); // ADDED
     populatePlantSelect(); // Populate the plant select dropdown in the nutrition tab
 
     // --- Nutrition Form Event Listener ---
@@ -409,6 +422,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 activeTabContent.style.display = 'block'; // Or 'flex', etc. as needed
                 if (tabId === 'nutritionTab') {
                     populatePlantSelect(); // Refresh plant list in select when tab is shown
+                    renderVitaminSummary(); // ADDED - Update summary when tab is shown
                 }
             }
         });
@@ -416,6 +430,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // --- Nutrition Log Functions ---
+function renderVitaminSummary() {
+    const summaryContainer = document.getElementById('vitaminSummaryContainer');
+    if (!summaryContainer) {
+        console.error("Vitamin summary container not found.");
+        return;
+    }
+
+    if (plants.length === 0) {
+        summaryContainer.innerHTML = '<p>No hay plantas añadidas para mostrar resumen de vitaminas.</p>';
+        return;
+    }
+
+    let summaryHTML = '<h2>Resumen de Última Aplicación de Vitaminas</h2><ul>';
+
+    plants.forEach(plant => {
+        const plantVitaminEntries = nutritionLog
+            .filter(entry => entry.plantId === plant.id && entry.type === 'vitaminas')
+            .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date descending
+
+        let lastVitaminDate = 'Nunca aplicadas';
+        if (plantVitaminEntries.length > 0) {
+            lastVitaminDate = `el ${new Date(plantVitaminEntries[0].date).toLocaleDateString()}`;
+        }
+        summaryHTML += `<li><strong>${plant.name}:</strong> Última aplicación de vitaminas ${lastVitaminDate}.</li>`;
+    });
+
+    summaryHTML += '</ul>';
+    summaryContainer.innerHTML = summaryHTML;
+}
+
+
 function populatePlantSelect() {
     const selectElement = document.getElementById('nutritionPlantSelect');
     if (!selectElement) {
@@ -485,9 +530,11 @@ async function saveNutritionEntry(event) {
     nutritionLog.push(newEntry);
     localStorage.setItem('nutritionLog', JSON.stringify(nutritionLog));
     renderNutritionLog();
+    renderVitaminSummary(); // ADDED - Update summary after saving new entry
     document.getElementById('nutritionForm').reset();
     populatePlantSelect(); // Repopulate to reset selection to default/placeholder
-    await checkAndScheduleNutritionReminder(); // Check and schedule reminder after new entry
+    await checkAndScheduleGeneralNutritionReminder(); // UPDATED
+    await checkAndScheduleVitaminReminder(); // ADDED
 }
 
 function renderNutritionLog() {
@@ -509,13 +556,20 @@ function renderNutritionLog() {
     sortedLog.forEach(entry => {
         const entryDiv = document.createElement('div');
         entryDiv.classList.add('nutrition-entry'); // For styling
+        if (entry.type === 'vitaminas') {
+            entryDiv.classList.add('vitamin-entry-highlight');
+        }
 
         const title = document.createElement('h3');
         title.textContent = `${entry.plantName} - ${new Date(entry.date).toLocaleDateString()}`;
         entryDiv.appendChild(title);
 
         const typeP = document.createElement('p');
-        typeP.innerHTML = `<strong>Tipo:</strong> ${entry.type}`;
+        if (entry.type === 'vitaminas') {
+            typeP.innerHTML = `<strong>Tipo:</strong> ✨ ${entry.type}`;
+        } else {
+            typeP.innerHTML = `<strong>Tipo:</strong> ${entry.type}`;
+        }
         entryDiv.appendChild(typeP);
 
         if (entry.notes) {
@@ -529,43 +583,77 @@ function renderNutritionLog() {
 }
 
 // --- Nutrition Reminder Functions ---
-async function checkAndScheduleNutritionReminder() {
+async function checkAndScheduleGeneralNutritionReminder() { // RENAMED
     if (Notification.permission !== 'granted') {
-        console.log('Notification permission not granted for nutrition reminder.');
+        console.log('Notification permission not granted for general nutrition reminder.');
         return;
     }
 
-    if (nutritionLog.length === 0) {
-        console.log('Nutrition log is empty. No reminder to schedule.');
+    const generalNutritionLog = nutritionLog.filter(entry => entry.type !== 'vitaminas'); // Exclude 'vitaminas'
+
+    if (generalNutritionLog.length === 0) {
+        console.log('General nutrition log is empty. No general reminder to schedule.');
         return;
     }
 
-    // Sort by date descending to find the most recent entry
-    const sortedLog = [...nutritionLog].sort((a, b) => new Date(b.date) - new Date(a.date));
-    const lastEntry = sortedLog[0];
+    // Sort by date descending to find the most recent non-vitamin entry
+    const sortedLog = generalNutritionLog.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const lastNonVitaminEntry = sortedLog[0];
 
-    const lastApplicationDate = new Date(lastEntry.date);
+    const lastApplicationDate = new Date(lastNonVitaminEntry.date);
     const reminderDate = new Date(lastApplicationDate);
     reminderDate.setMonth(reminderDate.getMonth() + 1);
     reminderDate.setHours(10, 0, 0, 0); // Set reminder for 10 AM
 
     if (reminderDate > new Date()) {
-        // Basic check to avoid scheduling past reminders
-        // A more robust solution would involve checking if a similar reminder has already been scheduled
-        // (e.g., using localStorage or checking active Service Worker notifications if possible).
-        // For this subtask, we'll keep it simple.
-
+        const tag = `general-nutrition-reminder-${lastNonVitaminEntry.plantId}-${new Date(reminderDate).getTime()}`;
         scheduleLocalNotification(
             reminderDate,
-            'Recordatorio de Nutrición 🌿',
-            `Ha pasado aproximadamente un mes desde la última aplicación de nutrientes (${lastEntry.type} a ${lastEntry.plantName} el ${new Date(lastEntry.date).toLocaleDateString()}). ¡Considera revisar tus plantas!`
+            'Recordatorio de Nutrición General 🌿', // Updated title
+            `Ha pasado aproximadamente un mes desde la última aplicación de ${lastNonVitaminEntry.type} a ${lastNonVitaminEntry.plantName} el ${new Date(lastNonVitaminEntry.date).toLocaleDateString()}. ¡Considera revisar tus plantas!`,
+            tag // ADDED tag
         );
-        console.log(`Nutrition reminder scheduled for: ${reminderDate.toLocaleString()}`);
+        console.log(`General nutrition reminder scheduled for ${lastNonVitaminEntry.plantName}: ${reminderDate.toLocaleString()}`);
     } else {
-        console.log('Nutrition reminder date is in the past or not applicable.');
+        console.log(`General nutrition reminder date for ${lastNonVitaminEntry.plantName} is in the past or not applicable.`);
     }
 }
 
+async function checkAndScheduleVitaminReminder() { // NEW function
+    if (Notification.permission !== 'granted') {
+        console.log('Notification permission not granted for vitamin reminder.');
+        return;
+    }
+
+    const vitaminLog = nutritionLog.filter(entry => entry.type === 'vitaminas');
+
+    if (vitaminLog.length === 0) {
+        console.log('Vitamin log is empty. No vitamin reminder to schedule.');
+        return;
+    }
+
+    // Sort by date descending to find the most recent vitamin entry
+    const sortedLog = vitaminLog.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const lastVitaminEntry = sortedLog[0];
+
+    const lastApplicationDate = new Date(lastVitaminEntry.date);
+    const reminderDate = new Date(lastApplicationDate);
+    reminderDate.setDate(reminderDate.getDate() + (4 * 7)); // Add 4 weeks
+    reminderDate.setHours(10, 0, 0, 0); // Set reminder for 10 AM
+
+    if (reminderDate > new Date()) {
+        const tag = `vitamin-reminder-${lastVitaminEntry.plantId}-${new Date(reminderDate).getTime()}`;
+        scheduleLocalNotification(
+            reminderDate,
+            `Recordatorio de Vitaminas 🌿`, // Title
+            `Es momento de aplicar vitaminas a tu ${lastVitaminEntry.plantName}. Última aplicación de vitaminas el ${new Date(lastVitaminEntry.date).toLocaleDateString()}.`, // Body
+            tag // ADDED tag
+        );
+        console.log(`Vitamin reminder scheduled for ${lastVitaminEntry.plantName}: ${reminderDate.toLocaleString()}`);
+    } else {
+        console.log(`Vitamin reminder date for ${lastVitaminEntry.plantName} is in the past or not applicable.`);
+    }
+}
 
 // The duplicated renderPlants function and its trailing comment are removed.
 // The primary renderPlants function (defined earlier in the file) is the one being used.

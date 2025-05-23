@@ -131,34 +131,35 @@ button:active {
 .plant-card {
     background-color: var(--card-background);
     border: 1px solid var(--border-color);
-    border-radius: 12px; /* Increased border-radius */
-    padding: 20px;
-    box-shadow: 0 2px 8px var(--shadow-color); /* Softer box-shadow */
+    border-radius: 10px; 
+    padding: 15px; /* Reduced padding */
+    box-shadow: 0 2px 6px var(--shadow-color); 
     display: flex;
     flex-direction: column;
-    gap: 12px; /* Espacio entre elementos dentro de la tarjeta */
+    gap: 8px; /* Reduced gap */
 }
 
 .plant-card h2 {
     margin-top: 0;
-    font-size: 1.3em;
+    margin-bottom: 5px; /* Reduced margin-bottom */
+    font-size: 1.2em; /* Reduced font-size */
     text-align: center;
 }
 
 .plant-card p {
-    font-size: 0.95em;
+    font-size: 0.85em; /* Reduced font-size */
     color: #555;
-    word-wrap: break-word; /* Para fechas largas */
+    word-wrap: break-word; 
+    margin-bottom: 4px; /* Reduced margin-bottom */
 }
 
-.plant-card .last-watered,
-.plant-card .next-reminder,
+.plant-card .watering-info, /* Updated class name */
 .plant-card .base-frequency,
 .plant-card .temp-info {
-    padding: 8px; /* Increased padding */
-    border-left: none; /* Removed border-left */
-    background-color: #f0f4f8; /* New background-color */
-    border-radius: 4px; /* Adjusted border-radius for consistency */
+    padding: 6px; 
+    background-color: #f0f4f8; 
+    border-radius: 4px; 
+    margin-bottom: 4px; /* Reduced margin-bottom */
 }
 
 .plant-card .temp-info {
@@ -170,12 +171,12 @@ button:active {
 /* --- Estilos para la Foto de la Planta en la Tarjeta --- */
 .plant-card img {
     max-width: 100%;
-    height: auto; /* Mantener la proporción, pero object-fit y max-height lo controlarán */
-    max-height: 180px; /* Límite de altura para la imagen */
-    object-fit: cover; /* Asegura que la imagen cubra el espacio sin distorsionarse */
-    border-radius: 8px; /* Bordes redondeados consistentes */
-    margin-bottom: 15px; /* Espacio debajo de la imagen */
-    display: block; /* Asegura que el margen funcione correctamente */
+    height: auto; 
+    max-height: 150px; /* Reduced max-height */
+    object-fit: cover; 
+    border-radius: 6px; 
+    margin-bottom: 10px; /* Reduced margin-bottom */
+    display: block; 
 }
 
 /* --- Botones dentro de la Tarjeta de Planta --- */
@@ -183,7 +184,9 @@ button:active {
     background-color: var(--primary-color);
     color: var(--light-text-color);
     width: 100%;
-    margin-top: 10px; /* Espacio extra antes del botón principal */
+    padding: 8px 10px; /* Reduced padding */
+    font-size: 0.9em; /* Reduced font-size */
+    margin-top: 8px; /* Reduced margin-top */
 }
 .plant-card .water-button:hover {
     background-color: #3e8e41;
@@ -191,15 +194,15 @@ button:active {
 
 .plant-card .button-group {
     display: flex;
-    gap: 10px;
-    margin-top: 10px;
+    gap: 8px; /* Reduced gap */
+    margin-top: 8px; /* Reduced margin-top */
 }
 
 .plant-card .edit-plant-button,
 .plant-card .delete-plant-button {
-    flex-grow: 1; /* Para que ocupen el mismo espacio si están en grupo */
-    padding: 8px 10px;
-    font-size: 0.9em;
+    flex-grow: 1; 
+    padding: 6px 8px; /* Reduced padding */
+    font-size: 0.85em; /* Reduced font-size */
 }
 
 .plant-card .edit-plant-button {
@@ -415,6 +418,31 @@ button:active {
 }
 
 /* --- Nutrition Tab Styles --- */
+.nutrition-summary-container { /* ADDED */
+    background-color: #eef3e6; /* A very light green, complementary to primary */
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.nutrition-summary-container h2 { /* ADDED */
+    text-align: center;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+.nutrition-summary-container ul { /* ADDED */
+    list-style-type: none;
+    padding: 0;
+}
+.nutrition-summary-container li { /* ADDED */
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 0.95em;
+}
+.nutrition-summary-container li:last-child { /* ADDED */
+    border-bottom: none;
+}
 .nutrition-form-container,
 .nutrition-log-container {
     background-color: #f9f9f9; /* Slightly different background for sections */
@@ -514,6 +542,14 @@ button:active {
     font-style: italic;
     color: #777;
     padding: 15px 0;
+}
+
+.vitamin-entry-highlight {
+    background-color: #fffacd; /* LemonChiffon, a light yellow */
+    border-left: 3px solid #ffd700; /* Gold */
+}
+.vitamin-entry-highlight h3 {
+    color: #b8860b; /* DarkGoldenrod - to make title stand out a bit on yellow */
 }
 
 
