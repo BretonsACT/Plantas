@@ -17,7 +17,6 @@ let plants = []; // Array to store plant objects
 let editingPlantId = null; // To track if we are editing an existing plant
 let nutritionLog = []; // Array to store nutrition log entries
 let lastGlobalNutritionDate = null;
-let lastGlobalVitaminDate = null;
 
 // --- Service Worker and Notifications ---
 if ('serviceWorker' in navigator) {
@@ -109,11 +108,13 @@ function renderPlants() {
         editButton.classList.add('edit-plant-button');
         editButton.textContent = '✏️'; // Icon only
         editButton.title = 'Editar'; // Tooltip for accessibility
+        editButton.addEventListener('click', () => openEditModal(plant)); // Correctly pass the plant object
 
         const deleteButton = document.createElement('button');
         deleteButton.classList.add('delete-plant-button');
         deleteButton.textContent = '🗑️'; // Icon only
         deleteButton.title = 'Eliminar'; // Tooltip for accessibility
+        deleteButton.addEventListener('click', () => handleDeletePlant(plant.id)); // Correctly pass plant.id
 
         plantCard.appendChild(nameEl);
         plantCard.appendChild(wateringInfoEl);
@@ -244,7 +245,7 @@ async function handleWaterPlant(plantId) {
     const now = new Date();
     plant.lastWateredDate = now.toISOString();
 
-    console.log(`Watering ${plant.name} on:`, now.toLocaleString());
+    console.log(`Watering ${plant.name} on: ${now.toLocaleString()}`);
 
     try {
         const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${API_KEY_WEATHERAPI}&q=Valencia&days=2&aqi=no&alerts=no`);
@@ -253,7 +254,7 @@ async function handleWaterPlant(plantId) {
             throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorData.error?.message || response.statusText}`);
         }
         const data = await response.json();
-        console.log('WeatherAPI Forecast Response (2-day):', data); // Good for debugging
+        // console.log('WeatherAPI Forecast Response (2-day):', data); // REMOVE
 
         let maxTemp;
         let tempSource = "today"; // To log the source of temperature
@@ -262,13 +263,12 @@ async function handleWaterPlant(plantId) {
         if (data.forecast && data.forecast.forecastday && data.forecast.forecastday[1] && data.forecast.forecastday[1].day && typeof data.forecast.forecastday[1].day.maxtemp_c !== 'undefined') {
             maxTemp = data.forecast.forecastday[1].day.maxtemp_c;
             tempSource = "tomorrow's forecast";
-            console.log(`Forecasted Max Temperature for ${tempSource} in Valencia (WeatherAPI):`, maxTemp + '°C');
         } 
         // Fallback to today's forecast if tomorrow's is not available
         else if (data.forecast && data.forecast.forecastday && data.forecast.forecastday[0] && data.forecast.forecastday[0].day && typeof data.forecast.forecastday[0].day.maxtemp_c !== 'undefined') {
             maxTemp = data.forecast.forecastday[0].day.maxtemp_c;
             tempSource = "today's forecast (fallback)";
-            console.warn(`Tomorrow's forecast not available. Using ${tempSource} in Valencia (WeatherAPI):`, maxTemp + '°C');
+            console.warn(`Tomorrow's forecast not available. Using ${tempSource} in Valencia (WeatherAPI): ${maxTemp}°C`);
         } 
         // If neither is available, throw an error
         else {
@@ -277,9 +277,21 @@ async function handleWaterPlant(plantId) {
         
         plant.temperatureAtLastWatering = maxTemp; // Store forecasted max temp
 
-        const dayAdjustment = maxTemp < 25 ? 1 : -1; // If maxTemp < 25, add 1 day, else subtract 1 day
-        let effectiveFrequency = plant.baseWateringFrequencyDays + dayAdjustment;
+        let effectiveFrequency = plant.baseWateringFrequencyDays; // Start with base frequency
+        let adjustmentReason = "Base frequency";
+
+        if (maxTemp > 32) {
+            effectiveFrequency = plant.baseWateringFrequencyDays - 1; 
+            adjustmentReason = `Temp > 32°C (${maxTemp}°C), -1 day`;
+        } else if (maxTemp < 20) { 
+            effectiveFrequency = plant.baseWateringFrequencyDays + 1;
+            adjustmentReason = `Temp < 20°C (${maxTemp}°C), +1 day`;
+        } else {
+            // Base frequency is used, adjustmentReason remains "Base frequency"
+        }
+
         effectiveFrequency = Math.max(1, effectiveFrequency); // Ensure frequency is at least 1 day
+        // console.log(`Plant: ${plant.name}, Temp: ${maxTemp}°C, Adj. Freq: ${effectiveFrequency}d (${adjustmentReason})`); // Retaining this commented as an example of a concise debug log
 
         const reminderDate = new Date(now.getTime() + effectiveFrequency * 24 * 60 * 60 * 1000);
         plant.nextReminderDate = reminderDate.toISOString();
@@ -287,7 +299,7 @@ async function handleWaterPlant(plantId) {
         scheduleLocalNotification(
             reminderDate,
             `¡A regar tu ${plant.name}!`,
-            `Es hora de regar tu ${plant.name}. Max Temp. (${tempSource}): ${maxTemp}°C. (Base: ${plant.baseWateringFrequencyDays} días, Ajustado: ${effectiveFrequency} días)`
+            `Es hora de regar tu ${plant.name}. Max Temp. (${tempSource}): ${maxTemp}°C. (Base: ${plant.baseWateringFrequencyDays}d, Ajustado: ${effectiveFrequency}d. Razón: ${adjustmentReason})`
         );
 
     } catch (error) {
@@ -330,12 +342,12 @@ function scheduleLocalNotification(date, title, body, tag = `notification-${new 
                 tag // Use the provided or generated tag
             }
         });
-        console.log(`Notification schedule request for "${title}" with tag "${tag}" sent to SW.`);
+        // console.log(`Notification schedule request for "${title}" with tag "${tag}" sent to SW.`); // REMOVE
     } else {
         // Fallback if SW is not active (less reliable if page closes)
         const delay = new Date(date).getTime() - Date.now();
         if (delay > 0) {
-            console.warn(`SW not active. Scheduling notification for "${title}" via page setTimeout (less reliable).`);
+            console.warn(`SW not active. Scheduling notification for "${title}" via page setTimeout (less reliable).`); // KEEP console.warn
             setTimeout(() => {
                 // This will only work if the page is still open.
                 // For PWA, the SW should handle this.
@@ -349,7 +361,7 @@ function scheduleLocalNotification(date, title, body, tag = `notification-${new 
                 });
             }, delay);
         } else {
-            console.log(`Reminder for "${title}" is in the past. Not scheduling via page setTimeout.`);
+            // console.log(`Reminder for "${title}" is in the past. Not scheduling via page setTimeout.`); // REMOVE
         }
     }
 }
@@ -389,8 +401,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadPlants(); // Load existing plants from localStorage and render them
     loadNutritionLog(); // Load nutrition log from localStorage
     renderGlobalNutritionSummary(); // ADDED - Initial render of global nutrition summary
-    await checkAndScheduleGeneralNutritionReminder(); // UPDATED
-    await checkAndScheduleVitaminReminder(); // ADDED
+    await checkAndScheduleNutritionReminders(); // UPDATED
     // populatePlantSelect(); // Populate the plant select dropdown in the nutrition tab - REMOVED
 
     // --- Nutrition Form Event Listener ---
@@ -460,19 +471,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // --- Nutrition Log Functions ---
 function renderGlobalNutritionSummary() {
-    const nutritionDateDisplay = document.getElementById('lastGlobalNutritionDateDisplay');
-    const vitaminDateDisplay = document.getElementById('lastGlobalVitaminDateDisplay');
+    const nextPotasaDateDisplay = document.getElementById('nextPotasaDateDisplay');
+    const nextFertilizanteGeneralDateDisplay = document.getElementById('nextFertilizanteGeneralDateDisplay');
 
-    if (nutritionDateDisplay) {
-        nutritionDateDisplay.textContent = lastGlobalNutritionDate 
-            ? new Date(lastGlobalNutritionDate).toLocaleDateString() 
-            : 'Nunca';
-    }
-    if (vitaminDateDisplay) {
-        vitaminDateDisplay.textContent = lastGlobalVitaminDate 
-            ? new Date(lastGlobalVitaminDate).toLocaleDateString() 
-            : 'Nunca';
-    }
+    const nutritionTypes = [
+        { type: "potasa", displayElement: nextPotasaDateDisplay, label: "Potasa" },
+        { type: "fertilizante_general", displayElement: nextFertilizanteGeneralDateDisplay, label: "Fertilizante General" }
+    ];
+
+    nutritionTypes.forEach(nutrient => {
+        if (!nutrient.displayElement) {
+            console.error(`Display element for ${nutrient.label} not found.`);
+            return;
+        }
+
+        const lastApplication = nutritionLog
+            .filter(entry => entry.type === nutrient.type)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+        if (lastApplication) {
+            const lastApplicationDate = new Date(lastApplication.date);
+            const nextApplicationDate = new Date(lastApplicationDate);
+            nextApplicationDate.setMonth(nextApplicationDate.getMonth() + 2); // Add 2 months
+            nutrient.displayElement.textContent = nextApplicationDate.toLocaleDateString();
+        } else {
+            nutrient.displayElement.textContent = 'Pendiente de primera aplicación';
+        }
+    });
 }
 // function renderVitaminSummary() { ... } // REMOVED
 
@@ -524,9 +549,6 @@ function loadNutritionLog() {
             }
             // Find the most recent vitamin application
             const lastVitamin = sortedLog.find(entry => entry.type === 'vitaminas');
-            if (lastVitamin) {
-                lastGlobalVitaminDate = lastVitamin.date;
-            }
         }
     }
     renderNutritionLog();
@@ -562,17 +584,13 @@ async function saveNutritionEntry(event) {
 
     // Update global timestamps
     lastGlobalNutritionDate = newEntry.date;
-    if (newEntry.type === 'vitaminas') {
-        lastGlobalVitaminDate = newEntry.date;
-    }
 
     renderNutritionLog();
     renderGlobalNutritionSummary(); // ADDED - Update summary after saving new entry
     // renderVitaminSummary(); // REMOVED
     document.getElementById('nutritionForm').reset();
     // populatePlantSelect(); // REMOVED
-    await checkAndScheduleGeneralNutritionReminder(); 
-    await checkAndScheduleVitaminReminder(); 
+    await checkAndScheduleNutritionReminders(); 
 }
 
 function renderNutritionLog() {
@@ -594,9 +612,6 @@ function renderNutritionLog() {
     sortedLog.forEach(entry => {
         const entryDiv = document.createElement('div');
         entryDiv.classList.add('nutrition-entry'); // For styling
-        if (entry.type === 'vitaminas') {
-            entryDiv.classList.add('vitamin-entry-highlight');
-        }
 
         const title = document.createElement('h3');
         // MODIFIED: Display a global entry title
@@ -604,11 +619,7 @@ function renderNutritionLog() {
         entryDiv.appendChild(title);
 
         const typeP = document.createElement('p');
-        if (entry.type === 'vitaminas') {
-            typeP.innerHTML = `<strong>Tipo:</strong> ✨ ${entry.type}`;
-        } else {
-            typeP.innerHTML = `<strong>Tipo:</strong> ${entry.type}`;
-        }
+        typeP.innerHTML = `<strong>Tipo:</strong> ${entry.type}`;
         entryDiv.appendChild(typeP);
 
         if (entry.notes) {
@@ -622,71 +633,44 @@ function renderNutritionLog() {
 }
 
 // --- Nutrition Reminder Functions ---
-async function checkAndScheduleGeneralNutritionReminder() { // RENAMED
+async function checkAndScheduleNutritionReminders() {
     if (Notification.permission !== 'granted') {
-        console.log('Notification permission not granted for general nutrition reminder.');
+        console.log('Notification permission not granted for nutrition reminders.');
         return;
     }
 
-    // MODIFIED: Use global lastGlobalNutritionDate, excluding vitamin-specific entries
-    if (!lastGlobalNutritionDate || nutritionLog.filter(e => e.type !== 'vitaminas').length === 0) {
-        console.log('No general nutrition applications found or lastGlobalNutritionDate is not set. No general reminder to schedule.');
-        return;
-    }
-    
-    // Find the last non-vitamin entry to get its type for the message
-    const nonVitaminLog = nutritionLog.filter(entry => entry.type !== 'vitaminas').sort((a,b) => new Date(b.date) - new Date(a.date));
-    const lastNonVitaminEntryDetails = nonVitaminLog.length > 0 ? nonVitaminLog[0] : {type: 'nutrición general', date: lastGlobalNutritionDate};
+    const nutritionTypes = ["potasa", "fertilizante_general"];
 
+    nutritionTypes.forEach(type => {
+        const lastApplication = nutritionLog
+            .filter(entry => entry.type === type)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
-    const lastApplicationDate = new Date(lastNonVitaminEntryDetails.date); // Use the date of the specific last non-vitamin entry
-    const reminderDate = new Date(lastApplicationDate);
-    reminderDate.setMonth(reminderDate.getMonth() + 1); 
-    reminderDate.setHours(10, 0, 0, 0);
+        if (lastApplication) {
+            const lastApplicationDate = new Date(lastApplication.date);
+            const reminderDate = new Date(lastApplicationDate);
+            reminderDate.setMonth(reminderDate.getMonth() + 2); // 2 months reminder
+            reminderDate.setHours(10, 0, 0, 0);
 
-    if (reminderDate > new Date()) {
-        const tag = `global-general-nutrition-reminder-${new Date(reminderDate).getTime()}`; // MODIFIED tag
-        scheduleLocalNotification(
-            reminderDate,
-            'Recordatorio de Nutrición General Global 🌿', 
-            `Ha pasado aproximadamente un mes desde la última aplicación de ${lastNonVitaminEntryDetails.type} el ${new Date(lastNonVitaminEntryDetails.date).toLocaleDateString()}. ¡Considera nutrir tus plantas!`, // MODIFIED message
-            tag
-        );
-        console.log(`Global general nutrition reminder scheduled: ${reminderDate.toLocaleString()}`);
-    } else {
-        console.log(`Global general nutrition reminder date is in the past or not applicable.`);
-    }
-}
+            if (reminderDate > new Date()) {
+                const tag = `global-${type}-reminder-${new Date(reminderDate).getTime()}`;
+                let friendlyTypeName = type.replace(/_/g, ' '); // e.g., fertilizante general
+                friendlyTypeName = friendlyTypeName.charAt(0).toUpperCase() + friendlyTypeName.slice(1); // Capitalize
 
-async function checkAndScheduleVitaminReminder() { 
-    if (Notification.permission !== 'granted') {
-        console.log('Notification permission not granted for vitamin reminder.');
-        return;
-    }
-
-    // MODIFIED: Use global lastGlobalVitaminDate
-    if (!lastGlobalVitaminDate) {
-        console.log('lastGlobalVitaminDate is not set. No vitamin reminder to schedule.');
-        return;
-    }
-
-    const lastApplicationDate = new Date(lastGlobalVitaminDate);
-    const reminderDate = new Date(lastApplicationDate);
-    reminderDate.setDate(reminderDate.getDate() + (4 * 7)); // Add 4 weeks
-    reminderDate.setHours(10, 0, 0, 0); 
-
-    if (reminderDate > new Date()) {
-        const tag = `global-vitamin-reminder-${new Date(reminderDate).getTime()}`; // MODIFIED tag
-        scheduleLocalNotification(
-            reminderDate,
-            `Recordatorio Global de Vitaminas ✨`, // MODIFIED title
-            `Han pasado aproximadamente 4 semanas desde la última aplicación global de vitaminas el ${new Date(lastGlobalVitaminDate).toLocaleDateString()}.`, // MODIFIED message
-            tag
-        );
-        console.log(`Global vitamin reminder scheduled: ${reminderDate.toLocaleString()}`);
-    } else {
-        console.log(`Global vitamin reminder date is in the past or not applicable.`);
-    }
+                scheduleLocalNotification(
+                    reminderDate,
+                    `Recordatorio de ${friendlyTypeName} Global 🌿`,
+                    `Han pasado aproximadamente 2 meses desde la última aplicación de ${friendlyTypeName} el ${lastApplicationDate.toLocaleDateString()}. ¡Considera nutrir tus plantas!`,
+                    tag
+                );
+                // console.log(`Global ${type} reminder scheduled: ${reminderDate.toLocaleString()}`); // REMOVE
+            } else {
+                // console.log(`Global ${type} reminder date is in the past or not applicable.`); // REMOVE
+            }
+        } else {
+            // console.log(`No application history found for ${type}. No reminder to schedule.`); // REMOVE
+        }
+    });
 }
 
 // The duplicated renderPlants function and its trailing comment are removed.

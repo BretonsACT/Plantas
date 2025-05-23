@@ -20,8 +20,8 @@
         <div id="plantsTab" class="tab-content active">
             <h1>Mis Plantas</h1>
             <div id="globalNutritionSummary" class="global-nutrition-summary">
-                <p>Última aplicación de nutrientes: <span id="lastGlobalNutritionDateDisplay">Nunca</span></p>
-                <p>Última aplicación de vitaminas: <span id="lastGlobalVitaminDateDisplay">Nunca</span></p>
+                <p>Próxima aplicación de Potasa: <span id="nextPotasaDateDisplay">Calculando...</span></p>
+                <p>Próxima aplicación de Fertilizante General: <span id="nextFertilizanteGeneralDateDisplay">Calculando...</span></p>
                 <button id="quickLogNutrientButton">Registrar Aplicación de Nutrientes</button>
             </div>
             <button id="addPlantButton">➕ Añadir Nueva Planta</button>
@@ -60,9 +60,6 @@
 
         <div id="nutritionTab" class="tab-content" style="display:none;">
             <h1>Registro de Nutrición</h1>
-            <div id="vitaminSummaryContainer" class="nutrition-summary-container"> <!-- ADDED -->
-                <!-- Vitamin summary will be injected here -->
-            </div>
             <div class="nutrition-form-container">
                 <h2>Añadir Registro de Nutrición</h2>
                 <form id="nutritionForm">
@@ -74,9 +71,7 @@
                         <label for="nutritionType">Tipo:</label>
                         <select id="nutritionType" required>
                             <option value="potasa">Potasa</option>
-                            <option value="vitaminas">Vitaminas</option>
                             <option value="fertilizante_general">Fertilizante General</option>
-                            <option value="otro">Otro</option>
                         </select>
                     </div>
                     <div>
