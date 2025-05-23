@@ -1,5 +1,4 @@
 // app.js
-// app.js
 
 // --- Global Variables and Constants ---
 const API_KEY_WEATHERAPI = '4c5750f21a1a4da398c222225252602'; // Your WeatherAPI Key
@@ -344,7 +343,7 @@ function scheduleLocalNotification(date, title, body) {
 
 // --- Event Listeners ---
 // Ensure these are set up after the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Modal Event Listeners
     if (addPlantButton) {
         addPlantButton.addEventListener('click', openModalForNewPlant);
