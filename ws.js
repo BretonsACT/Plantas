@@ -58,7 +58,8 @@ self.addEventListener('message', event => {
                 self.registration.showNotification(title, {
                     body: body,
                     icon: 'icons/icon-192x192.png', // Asegúrate que este icono exista
-                    badge: 'icons/badge-72x72.png' // Opcional, asegúrate que exista
+                    badge: 'icons/badge-72x72.png', // Opcional, asegúrate que exista
+                    tag: event.data.payload.tag
                 });
             }, delay);
         } else {
