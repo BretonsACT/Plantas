@@ -345,6 +345,22 @@ button:active {
     grid-column: 1 / -1; /* Para que ocupe todo el ancho del grid */
 }
 
+/* --- Date Group Headers --- */
+#plantsList .date-group-header {
+    grid-column: 1 / -1; /* Span full width of the grid */
+    margin-top: 20px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border-color, #eee);
+    font-size: 1.2em;
+    color: var(--text-color, #333);
+    font-weight: bold;
+}
+
+#plantsList .date-group-header:first-child {
+    margin-top: 0;
+}
+
 
 /* --- Media Queries para Responsividad --- */
 @media (max-width: 768px) {

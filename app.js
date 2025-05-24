@@ -51,6 +51,78 @@ function loadPlants() {
     renderPlants();
 }
 
+// Helper function to create a plant card element
+function createPlantCardElement(plant) {
+    const plantCard = document.createElement('div');
+    plantCard.classList.add('plant-card');
+    plantCard.dataset.id = plant.id; // Store plant ID on the card
+
+    const nameEl = document.createElement('h2');
+    nameEl.textContent = plant.name;
+
+    // Display plant photo if available
+    if (plant.photo) {
+        const imgEl = document.createElement('img');
+        imgEl.src = plant.photo;
+        imgEl.alt = `Photo of ${plant.name}`;
+        imgEl.style.maxWidth = '100%';
+        imgEl.style.height = 'auto';
+        imgEl.style.borderRadius = '8px'; // Consistent with card
+        // imgEl.style.marginBottom = '10px'; // Removed for compactness
+        plantCard.appendChild(imgEl); // Insert photo at the beginning of the card or after name
+    }
+
+    const lastWateredText = plant.lastWateredDate ? new Date(plant.lastWateredDate).toLocaleDateString() : 'Nunca';
+    const nextReminderText = plant.nextReminderDate ? new Date(plant.nextReminderDate).toLocaleDateString() : 'Pendiente';
+
+    const wateringInfoEl = document.createElement('p');
+    wateringInfoEl.classList.add('watering-info');
+    wateringInfoEl.textContent = `Riego: ${lastWateredText} / Próximo: ${nextReminderText}`;
+
+    const baseFreqEl = document.createElement('p');
+    baseFreqEl.classList.add('base-frequency');
+    baseFreqEl.textContent = `Frec. base: ${plant.baseWateringFrequencyDays} días`; // Shorter label
+
+    const tempInfoEl = document.createElement('p');
+    tempInfoEl.classList.add('temp-info');
+    if (plant.temperatureAtLastWatering !== null && plant.temperatureAtLastWatering !== "Error API") {
+        tempInfoEl.textContent = `Max Temp (ciclo): ${plant.temperatureAtLastWatering}°C`; // Shorter label
+    } else if (plant.temperatureAtLastWatering === "Error API") {
+        tempInfoEl.textContent = `Max Temp (ciclo): Error API`; // Shorter label
+    }
+
+    const waterButton = document.createElement('button');
+    waterButton.classList.add('water-button');
+    waterButton.textContent = '💧 Regada'; // Shorter label
+    waterButton.addEventListener('click', () => handleWaterPlant(plant.id));
+
+    const editButton = document.createElement('button');
+    editButton.classList.add('edit-plant-button');
+    editButton.textContent = '✏️'; // Icon only
+    editButton.title = 'Editar'; // Tooltip for accessibility
+    editButton.addEventListener('click', () => openEditModal(plant)); // Correctly pass the plant object
+
+    const deleteButton = document.createElement('button');
+    deleteButton.classList.add('delete-plant-button');
+    deleteButton.textContent = '🗑️'; // Icon only
+    deleteButton.title = 'Eliminar'; // Tooltip for accessibility
+    deleteButton.addEventListener('click', () => handleDeletePlant(plant.id)); // Correctly pass plant.id
+
+    plantCard.appendChild(nameEl);
+    plantCard.appendChild(wateringInfoEl);
+    plantCard.appendChild(baseFreqEl);
+    plantCard.appendChild(tempInfoEl);
+    plantCard.appendChild(waterButton);
+
+    const buttonGroup = document.createElement('div'); // Group edit and delete buttons
+    buttonGroup.classList.add('button-group');
+    buttonGroup.appendChild(editButton);
+    buttonGroup.appendChild(deleteButton);
+    plantCard.appendChild(buttonGroup);
+
+    return plantCard;
+}
+
 function renderPlants() {
     plantsListDiv.innerHTML = ''; // Clear current list
 
@@ -59,76 +131,56 @@ function renderPlants() {
         return;
     }
 
+    const groupedPlants = {};
+    const unscheduledKey = 'Unscheduled'; // Plants with no nextReminderDate
+
     plants.forEach(plant => {
-        const plantCard = document.createElement('div');
-        plantCard.classList.add('plant-card');
-        plantCard.dataset.id = plant.id; // Store plant ID on the card
+        if (plant.nextReminderDate) {
+            const date = new Date(plant.nextReminderDate);
+            // Format date as YYYY-MM-DD for consistent grouping and sorting
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateKey = `${year}-${month}-${day}`;
 
-        const nameEl = document.createElement('h2');
-        nameEl.textContent = plant.name;
-
-        // Display plant photo if available
-        if (plant.photo) {
-            const imgEl = document.createElement('img');
-            imgEl.src = plant.photo;
-            imgEl.alt = `Photo of ${plant.name}`;
-            imgEl.style.maxWidth = '100%';
-            imgEl.style.height = 'auto';
-            imgEl.style.borderRadius = '8px'; // Consistent with card
-            imgEl.style.marginBottom = '10px';
-            plantCard.appendChild(imgEl); // Insert photo at the beginning of the card or after name
+            if (!groupedPlants[dateKey]) {
+                groupedPlants[dateKey] = [];
+            }
+            groupedPlants[dateKey].push(plant);
+        } else {
+            if (!groupedPlants[unscheduledKey]) {
+                groupedPlants[unscheduledKey] = [];
+            }
+            groupedPlants[unscheduledKey].push(plant);
         }
+    });
 
-        const lastWateredText = plant.lastWateredDate ? new Date(plant.lastWateredDate).toLocaleDateString() : 'Nunca';
-        const nextReminderText = plant.nextReminderDate ? new Date(plant.nextReminderDate).toLocaleDateString() : 'Pendiente';
+    const dateKeys = Object.keys(groupedPlants).filter(key => key !== unscheduledKey);
+    dateKeys.sort(); // Sorts YYYY-MM-DD strings chronologically
 
-        const wateringInfoEl = document.createElement('p');
-        wateringInfoEl.classList.add('watering-info');
-        wateringInfoEl.textContent = `Riego: ${lastWateredText} / Próximo: ${nextReminderText}`;
+    const sortedGroupKeys = [...dateKeys];
+    if (groupedPlants[unscheduledKey]) {
+        sortedGroupKeys.push(unscheduledKey); // Add unscheduled group at the end
+    }
 
-        const baseFreqEl = document.createElement('p');
-        baseFreqEl.classList.add('base-frequency');
-        baseFreqEl.textContent = `Frec. base: ${plant.baseWateringFrequencyDays} días`; // Shorter label
+    sortedGroupKeys.forEach(key => {
+        const header = document.createElement('h3'); // Using h3 for date headers
+        header.classList.add('date-group-header'); 
 
-        const tempInfoEl = document.createElement('p');
-        tempInfoEl.classList.add('temp-info');
-        if (plant.temperatureAtLastWatering !== null && plant.temperatureAtLastWatering !== "Error API") {
-            tempInfoEl.textContent = `Max Temp (ciclo): ${plant.temperatureAtLastWatering}°C`; // Shorter label
-        } else if (plant.temperatureAtLastWatering === "Error API") {
-            tempInfoEl.textContent = `Max Temp (ciclo): Error API`; // Shorter label
+        if (key === unscheduledKey) {
+            header.textContent = 'Recordatorio no programado';
+        } else {
+            // Format for display, e.g., "Tuesday, October 26, 2023"
+            const dateParts = key.split('-');
+            const displayDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+            header.textContent = `Próximo riego: ${displayDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
         }
+        plantsListDiv.appendChild(header);
 
-
-        const waterButton = document.createElement('button');
-        waterButton.classList.add('water-button');
-        waterButton.textContent = '💧 Regada'; // Shorter label
-        waterButton.addEventListener('click', () => handleWaterPlant(plant.id));
-
-        const editButton = document.createElement('button');
-        editButton.classList.add('edit-plant-button');
-        editButton.textContent = '✏️'; // Icon only
-        editButton.title = 'Editar'; // Tooltip for accessibility
-        editButton.addEventListener('click', () => openEditModal(plant)); // Correctly pass the plant object
-
-        const deleteButton = document.createElement('button');
-        deleteButton.classList.add('delete-plant-button');
-        deleteButton.textContent = '🗑️'; // Icon only
-        deleteButton.title = 'Eliminar'; // Tooltip for accessibility
-        deleteButton.addEventListener('click', () => handleDeletePlant(plant.id)); // Correctly pass plant.id
-
-        plantCard.appendChild(nameEl);
-        plantCard.appendChild(wateringInfoEl);
-        plantCard.appendChild(baseFreqEl);
-        plantCard.appendChild(tempInfoEl);
-        plantCard.appendChild(waterButton);
-
-        const buttonGroup = document.createElement('div'); // Group edit and delete buttons
-        buttonGroup.classList.add('button-group');
-        buttonGroup.appendChild(editButton);
-        buttonGroup.appendChild(deleteButton);
-        plantCard.appendChild(buttonGroup);
-
-        plantsListDiv.appendChild(plantCard);
+        groupedPlants[key].forEach(plant => {
+            const plantCardElement = createPlantCardElement(plant);
+            plantsListDiv.appendChild(plantCardElement);
+        });
     });
 }
 
@@ -400,7 +452,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     requestNotificationPermission(); // Ask for permission early or at a more opportune time
     loadPlants(); // Load existing plants from localStorage and render them
     loadNutritionLog(); // Load nutrition log from localStorage
-    renderGlobalNutritionSummary(); // ADDED - Initial render of global nutrition summary
     await checkAndScheduleNutritionReminders(); // UPDATED
     // populatePlantSelect(); // Populate the plant select dropdown in the nutrition tab - REMOVED
 
@@ -442,63 +493,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // --- Quick Log Nutrient Button Event Listener ---
-    const quickLogNutrientButton = document.getElementById('quickLogNutrientButton');
-    if (quickLogNutrientButton) {
-        quickLogNutrientButton.addEventListener('click', () => {
-            // Deactivate current active tab & content
-            const currentActiveButton = document.querySelector('.tab-button.active');
-            const currentActiveContent = document.querySelector('.tab-content.active');
-            if (currentActiveButton) currentActiveButton.classList.remove('active');
-            if (currentActiveContent) {
-                currentActiveContent.style.display = 'none';
-                currentActiveContent.classList.remove('active');
-            }
-
-            // Activate nutrition tab
-            const nutritionTabButton = document.querySelector('.tab-button[data-tab="nutritionTab"]');
-            const nutritionTabContent = document.getElementById('nutritionTab');
-            if (nutritionTabButton) nutritionTabButton.classList.add('active');
-            if (nutritionTabContent) {
-                nutritionTabContent.classList.add('active');
-                nutritionTabContent.style.display = 'block'; // Or 'flex', etc.
-            }
-        });
-    } else {
-        console.error("Quick Log Nutrient Button not found");
-    }
+    // console.error("Quick Log Nutrient Button not found"); // This element is already removed from HTML.
 });
 
 // --- Nutrition Log Functions ---
-function renderGlobalNutritionSummary() {
-    const nextPotasaDateDisplay = document.getElementById('nextPotasaDateDisplay');
-    const nextFertilizanteGeneralDateDisplay = document.getElementById('nextFertilizanteGeneralDateDisplay');
-
-    const nutritionTypes = [
-        { type: "potasa", displayElement: nextPotasaDateDisplay, label: "Potasa" },
-        { type: "fertilizante_general", displayElement: nextFertilizanteGeneralDateDisplay, label: "Fertilizante General" }
-    ];
-
-    nutritionTypes.forEach(nutrient => {
-        if (!nutrient.displayElement) {
-            console.error(`Display element for ${nutrient.label} not found.`);
-            return;
-        }
-
-        const lastApplication = nutritionLog
-            .filter(entry => entry.type === nutrient.type)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-
-        if (lastApplication) {
-            const lastApplicationDate = new Date(lastApplication.date);
-            const nextApplicationDate = new Date(lastApplicationDate);
-            nextApplicationDate.setMonth(nextApplicationDate.getMonth() + 2); // Add 2 months
-            nutrient.displayElement.textContent = nextApplicationDate.toLocaleDateString();
-        } else {
-            nutrient.displayElement.textContent = 'Pendiente de primera aplicación';
-        }
-    });
-}
+// function renderGlobalNutritionSummary() { ... } // REMOVED
 // function renderVitaminSummary() { ... } // REMOVED
 
 function populatePlantSelect() { // This function might become orphaned. Will review later.
@@ -552,7 +551,6 @@ function loadNutritionLog() {
         }
     }
     renderNutritionLog();
-    renderGlobalNutritionSummary(); // ADDED - Update summary after loading
 }
 
 async function saveNutritionEntry(event) {
@@ -586,7 +584,6 @@ async function saveNutritionEntry(event) {
     lastGlobalNutritionDate = newEntry.date;
 
     renderNutritionLog();
-    renderGlobalNutritionSummary(); // ADDED - Update summary after saving new entry
     // renderVitaminSummary(); // REMOVED
     document.getElementById('nutritionForm').reset();
     // populatePlantSelect(); // REMOVED
