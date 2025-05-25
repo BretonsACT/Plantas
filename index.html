@@ -14,6 +14,7 @@
     <div class="container">
         <div class="tabs">
             <button class="tab-button active" data-tab="plantsTab">Mis Plantas</button>
+            <button class="tab-button" data-tab="nutritionTab">Nutrición</button>
         </div>
 
         <div id="plantsTab" class="tab-content active">
@@ -48,6 +49,54 @@
                     <label for="plantPhotoInput">Foto (opcional):</label>
                     <input type="file" id="plantPhotoInput" accept="image/*"><br><br>
                     <button id="savePlantButton">Guardar Planta</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="nutritionTab" class="tab-content" style="display:none;">
+            <h1>Nutrición de Plantas</h1>
+            <!-- Placeholder for Nutrition Summary -->
+            <div class="nutrition-summary-container">
+                <h2>Resumen de Nutrición</h2>
+                <ul id="vitaminSummaryList">
+                    <!-- Summary items will be populated by JS -->
+                    <li>Resumen de vitaminas aparecerá aquí...</li>
+                </ul>
+            </div>
+
+            <!-- Placeholder for Nutrition Form -->
+            <div class="nutrition-form-container">
+                <h2>Registrar Nueva Entrada de Nutrición</h2>
+                <form id="nutritionForm">
+                    <div>
+                        <label for="nutritionPlantSelect">Planta:</label>
+                        <select id="nutritionPlantSelect" name="plantId">
+                            <!-- Options will be populated by JS -->
+                            <option value="">Selecciona una planta...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="nutritionDate">Fecha:</label>
+                        <input type="date" id="nutritionDate" name="date" required>
+                    </div>
+                    <div>
+                        <label for="nutritionType">Tipo de Nutriente/Vitamina:</label>
+                        <input type="text" id="nutritionType" name="type" placeholder="Ej: Vitamina B1, Fertilizante NPK" required>
+                    </div>
+                    <div>
+                        <label for="nutritionNotes">Notas:</label>
+                        <textarea id="nutritionNotes" name="notes" rows="3"></textarea>
+                    </div>
+                    <button type="button" id="saveNutritionEntryButton">Guardar Entrada</button>
+                </form>
+            </div>
+
+            <!-- Placeholder for Nutrition Log -->
+            <div class="nutrition-log-container">
+                <h2>Historial de Nutrición</h2>
+                <div id="nutritionLogList">
+                    <!-- Log entries will be populated by JS -->
+                    <p>No hay entradas de nutrición todavía.</p>
                 </div>
             </div>
         </div>

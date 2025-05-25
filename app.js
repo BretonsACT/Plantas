@@ -421,7 +421,7 @@ function scheduleLocalNotification(date, title, body, tag = `notification-${new 
 // Ensure these are set up after the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', async () => {
     // One-time cleanup of old nutrition data from localStorage
-    localStorage.removeItem('nutritionLog');
+    // localStorage.removeItem('nutritionLog'); 
 
     // Modal Event Listeners
     if (addPlantButton) {
@@ -475,16 +475,137 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (activeTabContent) {
                 activeTabContent.classList.add('active');
                 activeTabContent.style.display = 'block'; // Or 'flex', etc. as needed
-                // if (tabId === 'nutritionTab') { // REMOVED populatePlantSelect and renderVitaminSummary
-                //     populatePlantSelect(); 
-                //     renderVitaminSummary(); 
-                // }
+                if (tabId === 'nutritionTab') {
+                    populatePlantSelect();
+                    renderVitaminSummary();
+                    loadNutritionLog(); // Also load the full log when tab is switched to
+                }
             }
         });
     });
 
+    const saveNutritionButton = document.getElementById('saveNutritionEntryButton');
+    if (saveNutritionButton) {
+        saveNutritionButton.addEventListener('click', handleSaveNutritionEntry);
+    } else {
+        console.error("Save Nutrition Entry Button not found");
+    }
+
     // console.error("Quick Log Nutrient Button not found"); // This element is already removed from HTML.
 });
+
+// --- Nutrition Tab Functions ---
+let nutritionLog = []; // Array to store nutrition entries
+
+function populatePlantSelect() {
+    const selectElement = document.getElementById('nutritionPlantSelect');
+    // Clear existing options except the first one
+    selectElement.innerHTML = '<option value="">Selecciona una planta...</option>'; 
+
+    plants.forEach(plant => {
+        const option = document.createElement('option');
+        option.value = plant.id;
+        option.textContent = plant.name;
+        selectElement.appendChild(option);
+    });
+    console.log('populatePlantSelect called - plants populated in dropdown.');
+}
+
+function renderVitaminSummary() {
+    const summaryList = document.getElementById('vitaminSummaryList');
+    if (!summaryList) {
+        console.error('vitaminSummaryList element not found');
+        return;
+    }
+
+    // Ensure nutritionLog is loaded, though it should be by other calls.
+    // If nutritionLog isn't guaranteed to be populated, call loadNutritionLog() here.
+    // For now, assuming it's populated as per current app flow.
+
+    let vitaminCount = 0;
+    if (nutritionLog && nutritionLog.length > 0) {
+        vitaminCount = nutritionLog.filter(entry => 
+            entry.type && entry.type.toLowerCase().includes('vitamin')
+        ).length;
+    }
+
+    if (vitaminCount > 0) {
+        summaryList.innerHTML = `<li>Total de aplicaciones de vitaminas: ${vitaminCount}</li>`;
+    } else {
+        summaryList.innerHTML = '<li>No se han registrado aplicaciones de vitaminas.</li>';
+    }
+    console.log(`renderVitaminSummary called - Vitamin applications: ${vitaminCount}`);
+}
+
+function handleSaveNutritionEntry() {
+    console.log('handleSaveNutritionEntry called - this will save nutrition data.');
+    const plantId = document.getElementById('nutritionPlantSelect').value;
+    const date = document.getElementById('nutritionDate').value;
+    const type = document.getElementById('nutritionType').value.trim();
+    const notes = document.getElementById('nutritionNotes').value.trim();
+
+    if (!plantId || !date || !type) {
+        alert('Por favor, selecciona una planta, introduce la fecha y el tipo de nutriente.');
+        return;
+    }
+
+    const newEntry = {
+        id: 'nutri_' + Date.now(),
+        plantId,
+        plantName: plants.find(p => p.id === plantId)?.name || 'Nombre no encontrado',
+        date,
+        type,
+        notes
+    };
+
+    nutritionLog.push(newEntry);
+    localStorage.setItem('nutritionLog', JSON.stringify(nutritionLog));
+    console.log('Nutrition entry saved:', newEntry);
+    
+    // Re-render the log and summary
+    loadNutritionLog(); 
+    renderVitaminSummary();
+
+    // Clear the form
+    document.getElementById('nutritionForm').reset();
+    document.getElementById('nutritionPlantSelect').value = ""; // Reset select
+}
+
+function loadNutritionLog() {
+    const storedLog = localStorage.getItem('nutritionLog');
+    if (storedLog) {
+        nutritionLog = JSON.parse(storedLog);
+    } else {
+        nutritionLog = []; // Initialize if nothing in storage
+    }
+
+    const logListDiv = document.getElementById('nutritionLogList');
+    logListDiv.innerHTML = ''; // Clear current list
+
+    if (nutritionLog.length === 0) {
+        logListDiv.innerHTML = '<p>No hay entradas de nutrición todavía.</p>';
+        return;
+    }
+
+    nutritionLog.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date, newest first
+
+    nutritionLog.forEach(entry => {
+        const entryDiv = document.createElement('div');
+        entryDiv.classList.add('nutrition-entry');
+        // Highlight if it contains 'vitamin' (case-insensitive)
+        if (entry.type.toLowerCase().includes('vitamin')) {
+            entryDiv.classList.add('vitamin-entry-highlight');
+        }
+
+        entryDiv.innerHTML = `
+            <h3>${entry.plantName} - ${entry.type}</h3>
+            <p><strong>Fecha:</strong> ${new Date(entry.date).toLocaleDateString()}</p>
+            ${entry.notes ? `<p><strong>Notas:</strong> ${entry.notes}</p>` : ''}
+        `;
+        logListDiv.appendChild(entryDiv);
+    });
+    console.log('loadNutritionLog called - log displayed.');
+}
 
 // The duplicated renderPlants function and its trailing comment are removed.
 // The primary renderPlants function (defined earlier in the file) is the one being used.
