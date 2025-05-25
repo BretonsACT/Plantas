@@ -15,8 +15,6 @@ const plantPhotoInput = document.getElementById('plantPhotoInput'); // Input for
 
 let plants = []; // Array to store plant objects
 let editingPlantId = null; // To track if we are editing an existing plant
-let nutritionLog = []; // Array to store nutrition log entries
-let lastGlobalNutritionDate = null;
 
 // --- Service Worker and Notifications ---
 if ('serviceWorker' in navigator) {
@@ -422,6 +420,9 @@ function scheduleLocalNotification(date, title, body, tag = `notification-${new 
 // --- Event Listeners ---
 // Ensure these are set up after the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', async () => {
+    // One-time cleanup of old nutrition data from localStorage
+    localStorage.removeItem('nutritionLog');
+
     // Modal Event Listeners
     if (addPlantButton) {
         addPlantButton.addEventListener('click', openModalForNewPlant);
@@ -451,17 +452,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initial setup
     requestNotificationPermission(); // Ask for permission early or at a more opportune time
     loadPlants(); // Load existing plants from localStorage and render them
-    loadNutritionLog(); // Load nutrition log from localStorage
-    await checkAndScheduleNutritionReminders(); // UPDATED
-    // populatePlantSelect(); // Populate the plant select dropdown in the nutrition tab - REMOVED
-
-    // --- Nutrition Form Event Listener ---
-    const nutritionForm = document.getElementById('nutritionForm');
-    if (nutritionForm) {
-        nutritionForm.addEventListener('submit', saveNutritionEntry);
-    } else {
-        console.error("Nutrition form not found.");
-    }
 
     // --- Tab Switching Logic ---
     const tabButtons = document.querySelectorAll('.tab-button');
@@ -495,180 +485,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // console.error("Quick Log Nutrient Button not found"); // This element is already removed from HTML.
 });
-
-// --- Nutrition Log Functions ---
-// function renderGlobalNutritionSummary() { ... } // REMOVED
-// function renderVitaminSummary() { ... } // REMOVED
-
-function populatePlantSelect() { // This function might become orphaned. Will review later.
-    const selectElement = document.getElementById('nutritionPlantSelect');
-    if (!selectElement) {
-        // This is expected now as the element is removed from HTML
-        // console.error("Nutrition plant select element not found."); 
-        return;
-    }
-    // ... rest of the function remains for now, though it won't be called in nutrition context
-    const currentPlantId = selectElement.value; 
-    selectElement.innerHTML = ''; 
-
-    const defaultOption = document.createElement('option');
-    defaultOption.textContent = 'Seleccionar planta...';
-    defaultOption.value = '';
-    defaultOption.disabled = true;
-    defaultOption.selected = !currentPlantId; 
-    selectElement.appendChild(defaultOption);
-
-    if (plants.length === 0) {
-        const noPlantsOption = document.createElement('option');
-        noPlantsOption.textContent = 'No hay plantas añadidas';
-        noPlantsOption.disabled = true;
-        selectElement.appendChild(noPlantsOption);
-    } else {
-        plants.forEach(plant => {
-            const option = document.createElement('option');
-            option.value = plant.id;
-            option.textContent = plant.name;
-            if (plant.id === currentPlantId) {
-                option.selected = true; 
-            }
-            selectElement.appendChild(option);
-        });
-    }
-}
-
-function loadNutritionLog() {
-    const storedLog = localStorage.getItem('nutritionLog');
-    if (storedLog) {
-        nutritionLog = JSON.parse(storedLog);
-        if (nutritionLog.length > 0) {
-            const sortedLog = [...nutritionLog].sort((a, b) => new Date(b.date) - new Date(a.date));
-            // Find the most recent overall nutrition application
-            if (sortedLog.length > 0) {
-                lastGlobalNutritionDate = sortedLog[0].date;
-            }
-            // Find the most recent vitamin application
-            const lastVitamin = sortedLog.find(entry => entry.type === 'vitaminas');
-        }
-    }
-    renderNutritionLog();
-}
-
-async function saveNutritionEntry(event) {
-    event.preventDefault(); // Prevent default form submission
-
-    // const plantId = document.getElementById('nutritionPlantSelect').value; // REMOVED
-    const date = document.getElementById('nutritionDate').value;
-    const type = document.getElementById('nutritionType').value;
-    const notes = document.getElementById('nutritionNotes').value.trim();
-
-    if (!date) { // MODIFIED: Only date is mandatory now
-        alert('Por favor, selecciona una fecha.');
-        return;
-    }
-
-    // const plantName = plants.find(p => p.id === plantId)?.name || 'Nombre Desconocido'; // REMOVED
-
-    const newEntry = {
-        id: 'nutri_' + Date.now(),
-        // plantId: plantId, // REMOVED
-        // plantName: plantName, // REMOVED
-        date: date,
-        type: type,
-        notes: notes
-    };
-
-    nutritionLog.push(newEntry);
-    localStorage.setItem('nutritionLog', JSON.stringify(nutritionLog));
-
-    // Update global timestamps
-    lastGlobalNutritionDate = newEntry.date;
-
-    renderNutritionLog();
-    // renderVitaminSummary(); // REMOVED
-    document.getElementById('nutritionForm').reset();
-    // populatePlantSelect(); // REMOVED
-    await checkAndScheduleNutritionReminders(); 
-}
-
-function renderNutritionLog() {
-    const logListDiv = document.getElementById('nutritionLogList');
-    if (!logListDiv) {
-        console.error("Nutrition log list element not found.");
-        return;
-    }
-    logListDiv.innerHTML = ''; // Clear current list
-
-    if (nutritionLog.length === 0) {
-        logListDiv.innerHTML = '<p>Aún no hay registros de nutrición.</p>';
-        return;
-    }
-
-    // Sort by date descending (most recent first)
-    const sortedLog = [...nutritionLog].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    sortedLog.forEach(entry => {
-        const entryDiv = document.createElement('div');
-        entryDiv.classList.add('nutrition-entry'); // For styling
-
-        const title = document.createElement('h3');
-        // MODIFIED: Display a global entry title
-        title.textContent = `Nutrientes Aplicados: ${new Date(entry.date).toLocaleDateString()}`;
-        entryDiv.appendChild(title);
-
-        const typeP = document.createElement('p');
-        typeP.innerHTML = `<strong>Tipo:</strong> ${entry.type}`;
-        entryDiv.appendChild(typeP);
-
-        if (entry.notes) {
-            const notesP = document.createElement('p');
-            notesP.innerHTML = `<strong>Notas:</strong> ${entry.notes}`;
-            entryDiv.appendChild(notesP);
-        }
-        // Optional: Add delete button per entry here if desired in future
-        logListDiv.appendChild(entryDiv);
-    });
-}
-
-// --- Nutrition Reminder Functions ---
-async function checkAndScheduleNutritionReminders() {
-    if (Notification.permission !== 'granted') {
-        console.log('Notification permission not granted for nutrition reminders.');
-        return;
-    }
-
-    const nutritionTypes = ["potasa", "fertilizante_general"];
-
-    nutritionTypes.forEach(type => {
-        const lastApplication = nutritionLog
-            .filter(entry => entry.type === type)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-
-        if (lastApplication) {
-            const lastApplicationDate = new Date(lastApplication.date);
-            const reminderDate = new Date(lastApplicationDate);
-            reminderDate.setMonth(reminderDate.getMonth() + 2); // 2 months reminder
-            reminderDate.setHours(10, 0, 0, 0);
-
-            if (reminderDate > new Date()) {
-                const tag = `global-${type}-reminder-${new Date(reminderDate).getTime()}`;
-                let friendlyTypeName = type.replace(/_/g, ' '); // e.g., fertilizante general
-                friendlyTypeName = friendlyTypeName.charAt(0).toUpperCase() + friendlyTypeName.slice(1); // Capitalize
-
-                scheduleLocalNotification(
-                    reminderDate,
-                    `Recordatorio de ${friendlyTypeName} Global 🌿`,
-                    `Han pasado aproximadamente 2 meses desde la última aplicación de ${friendlyTypeName} el ${lastApplicationDate.toLocaleDateString()}. ¡Considera nutrir tus plantas!`,
-                    tag
-                );
-                // console.log(`Global ${type} reminder scheduled: ${reminderDate.toLocaleString()}`); // REMOVE
-            } else {
-                // console.log(`Global ${type} reminder date is in the past or not applicable.`); // REMOVE
-            }
-        } else {
-            // console.log(`No application history found for ${type}. No reminder to schedule.`); // REMOVE
-        }
-    });
-}
 
 // The duplicated renderPlants function and its trailing comment are removed.
 // The primary renderPlants function (defined earlier in the file) is the one being used.
