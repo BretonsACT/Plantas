@@ -6,12 +6,14 @@ const plantsListDiv = document.getElementById('plantsList');
 const addPlantButton = document.getElementById('addPlantButton');
 const plantModal = document.getElementById('plantModal');
 const modalTitle = document.getElementById('modalTitle');
-const closeButton = document.querySelector('.modal .close-button'); // More specific selector for modal's close button
+const closeButton = document.querySelector('.modal .close-button');
 const savePlantButton = document.getElementById('savePlantButton');
-const plantIdInput = document.getElementById('plantIdInput'); // Hidden input for plant ID when editing
+const plantIdInput = document.getElementById('plantIdInput');
 const plantNameInput = document.getElementById('plantName');
 const plantFrequencyInput = document.getElementById('plantFrequency');
-const plantPhotoInput = document.getElementById('plantPhotoInput'); // Input for plant photo
+const plantPhotoInput = document.getElementById('plantPhotoInput');
+const generalWeatherDisplayDiv = document.getElementById('generalWeatherDisplay');
+
 
 let plants = []; // Array to store plant objects
 let editingPlantId = null; // To track if we are editing an existing plant
@@ -19,7 +21,7 @@ let editingPlantId = null; // To track if we are editing an existing plant
 // --- Service Worker and Notifications ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('ws.js') // Make sure ws.js is in the root
+        navigator.serviceWorker.register('ws.js')
             .then(registration => console.log('ServiceWorker registration successful with scope: ', registration.scope))
             .catch(error => console.log('ServiceWorker registration failed: ', error));
     });
@@ -40,6 +42,64 @@ function requestNotificationPermission() {
     }
 }
 
+// --- General Weather Display ---
+async function fetchAndDisplayWeather() {
+    if (!generalWeatherDisplayDiv) return;
+    generalWeatherDisplayDiv.innerHTML = '<p>Cargando información del tiempo...</p>';
+
+    try {
+        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${API_KEY_WEATHERAPI}&q=Valencia&days=3&aqi=no&alerts=no&lang=es`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: "Failed to parse error response" }));
+            throw new Error(`WeatherAPI error: ${response.status}, Message: ${errorData.error?.message || response.statusText}`);
+        }
+        const data = await response.json();
+
+        let weatherHTML = '<h3>Tiempo en Valencia</h3>';
+        
+        // Current Weather
+        weatherHTML += `<div class="current-weather">`;
+        weatherHTML += `<img src="https:${data.current.condition.icon}" alt="${data.current.condition.text}" class="weather-icon-current">`;
+        weatherHTML += `<div class="current-weather-details">`;
+        weatherHTML += `<span class="current-temp">${data.current.temp_c}°C</span>`;
+        weatherHTML += `<span class="current-condition">${data.current.condition.text}</span>`;
+        weatherHTML += `</div></div>`; // End current-weather-details and current-weather
+
+        // Forecast
+        weatherHTML += `<h4>Próximos días:</h4>`;
+        weatherHTML += `<div class="forecast-days">`;
+
+        data.forecast.forecastday.forEach((day, index) => {
+            const date = new Date(day.date_epoch * 1000); // Use epoch for reliable date parsing
+            let dayName;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const forecastDate = new Date(date);
+            forecastDate.setHours(0,0,0,0);
+
+            if (forecastDate.getTime() === today.getTime()) {
+                dayName = 'Hoy';
+            } else {
+                dayName = date.toLocaleDateString('es-ES', { weekday: 'short' });
+            }
+            
+            weatherHTML += `<div class="forecast-day-card">`;
+            weatherHTML += `<strong>${dayName}</strong>`;
+            weatherHTML += `<img src="https:${day.day.condition.icon}" alt="${day.day.condition.text}" class="weather-icon-forecast">`;
+            weatherHTML += `<p>${Math.round(day.day.mintemp_c)}° / ${Math.round(day.day.maxtemp_c)}°</p>`;
+            weatherHTML += `</div>`;
+        });
+
+        weatherHTML += `</div>`; // End forecast-days
+        generalWeatherDisplayDiv.innerHTML = weatherHTML;
+
+    } catch (error) {
+        console.error('Error fetching general weather:', error);
+        generalWeatherDisplayDiv.innerHTML = '<p>No se pudo cargar la información del tiempo.</p>';
+    }
+}
+
+
 // --- Load and Display Plants ---
 function loadPlants() {
     const storedPlants = localStorage.getItem('plants');
@@ -49,95 +109,117 @@ function loadPlants() {
     renderPlants();
 }
 
-// Helper function to create a plant card element
+// Helper function to create a plant card element (Compact Version)
 function createPlantCardElement(plant) {
     const plantCard = document.createElement('div');
     plantCard.classList.add('plant-card');
-    plantCard.dataset.id = plant.id; // Store plant ID on the card
+    plantCard.dataset.id = plant.id;
 
-    const nameEl = document.createElement('h2');
-    nameEl.textContent = plant.name;
+    const mainContent = document.createElement('div');
+    mainContent.classList.add('plant-card-main');
 
-    // Display plant photo if available
     if (plant.photo) {
+        const photoContainer = document.createElement('div');
+        photoContainer.classList.add('plant-card-photo-container');
         const imgEl = document.createElement('img');
         imgEl.src = plant.photo;
-        imgEl.alt = `Photo of ${plant.name}`;
-        imgEl.style.maxWidth = '100%';
-        imgEl.style.height = 'auto';
-        imgEl.style.borderRadius = '8px'; // Consistent with card
-        // imgEl.style.marginBottom = '10px'; // Removed for compactness
-        plantCard.appendChild(imgEl); // Insert photo at the beginning of the card or after name
+        imgEl.alt = `Foto de ${plant.name}`;
+        photoContainer.appendChild(imgEl);
+        mainContent.appendChild(photoContainer);
     }
 
-    const lastWateredText = plant.lastWateredDate ? new Date(plant.lastWateredDate).toLocaleDateString() : 'Nunca';
-    const nextReminderText = plant.nextReminderDate ? new Date(plant.nextReminderDate).toLocaleDateString() : 'Pendiente';
+    const infoContainer = document.createElement('div');
+    infoContainer.classList.add('plant-card-info');
 
-    const wateringInfoEl = document.createElement('p');
-    wateringInfoEl.classList.add('watering-info');
-    wateringInfoEl.textContent = `Riego: ${lastWateredText} / Próximo: ${nextReminderText}`;
+    const nameEl = document.createElement('h3');
+    nameEl.textContent = plant.name;
+    infoContainer.appendChild(nameEl);
 
-    const baseFreqEl = document.createElement('p');
-    baseFreqEl.classList.add('base-frequency');
-    baseFreqEl.textContent = `Frec. base: ${plant.baseWateringFrequencyDays} días`; // Shorter label
+    const nextReminderText = plant.nextReminderDate 
+        ? new Date(plant.nextReminderDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) 
+        : 'N/A';
+    const nextWateringEl = document.createElement('p');
+    nextWateringEl.innerHTML = `📅 Próx: <strong>${nextReminderText}</strong> (Base: ${plant.baseWateringFrequencyDays}d)`;
+    infoContainer.appendChild(nextWateringEl);
 
-    const tempInfoEl = document.createElement('p');
-    tempInfoEl.classList.add('temp-info');
+    const lastWateredText = plant.lastWateredDate 
+        ? new Date(plant.lastWateredDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) 
+        : 'Nunca';
+    let tempAtLastWateringText = '';
     if (plant.temperatureAtLastWatering !== null && plant.temperatureAtLastWatering !== "Error API") {
-        tempInfoEl.textContent = `Max Temp (ciclo): ${plant.temperatureAtLastWatering}°C`; // Shorter label
+        tempAtLastWateringText = ` (🌡️ ${plant.temperatureAtLastWatering}°C)`;
     } else if (plant.temperatureAtLastWatering === "Error API") {
-        tempInfoEl.textContent = `Max Temp (ciclo): Error API`; // Shorter label
+        tempAtLastWateringText = ` (🌡️ Error)`;
     }
+    const lastWateringEl = document.createElement('p');
+    lastWateringEl.innerHTML = `💧 Último: ${lastWateredText}${tempAtLastWateringText}`;
+    infoContainer.appendChild(lastWateringEl);
+    
+    mainContent.appendChild(infoContainer);
+    plantCard.appendChild(mainContent);
+
+    const actionsContainer = document.createElement('div');
+    actionsContainer.classList.add('plant-card-actions');
 
     const waterButton = document.createElement('button');
     waterButton.classList.add('water-button');
-    waterButton.textContent = '💧 Regada'; // Shorter label
-    waterButton.addEventListener('click', () => handleWaterPlant(plant.id));
+    waterButton.innerHTML = '💧<span class="button-text">Regada</span>';
+    waterButton.title = 'Marcar como regada hoy';
+    waterButton.addEventListener('click', (e) => { e.stopPropagation(); handleWaterPlant(plant.id); });
 
     const editButton = document.createElement('button');
     editButton.classList.add('edit-plant-button');
-    editButton.textContent = '✏️'; // Icon only
-    editButton.title = 'Editar'; // Tooltip for accessibility
-    editButton.addEventListener('click', () => openEditModal(plant)); // Correctly pass the plant object
+    editButton.innerHTML = '✏️<span class="button-text">Editar</span>';
+    editButton.title = 'Editar planta';
+    editButton.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(plant); });
 
     const deleteButton = document.createElement('button');
     deleteButton.classList.add('delete-plant-button');
-    deleteButton.textContent = '🗑️'; // Icon only
-    deleteButton.title = 'Eliminar'; // Tooltip for accessibility
-    deleteButton.addEventListener('click', () => handleDeletePlant(plant.id)); // Correctly pass plant.id
+    deleteButton.innerHTML = '🗑️<span class="button-text">Eliminar</span>';
+    deleteButton.title = 'Eliminar planta';
+    deleteButton.addEventListener('click', (e) => { e.stopPropagation(); handleDeletePlant(plant.id); });
 
-    plantCard.appendChild(nameEl);
-    plantCard.appendChild(wateringInfoEl);
-    plantCard.appendChild(baseFreqEl);
-    plantCard.appendChild(tempInfoEl);
-    plantCard.appendChild(waterButton);
+    actionsContainer.appendChild(waterButton);
+    actionsContainer.appendChild(editButton);
+    actionsContainer.appendChild(deleteButton);
+    plantCard.appendChild(actionsContainer);
 
-    const buttonGroup = document.createElement('div'); // Group edit and delete buttons
-    buttonGroup.classList.add('button-group');
-    buttonGroup.appendChild(editButton);
-    buttonGroup.appendChild(deleteButton);
-    plantCard.appendChild(buttonGroup);
+    // Add highlight classes based on nextReminderDate
+    if (plant.nextReminderDate) {
+        const nextDate = new Date(plant.nextReminderDate);
+        nextDate.setHours(0,0,0,0);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+
+        if (nextDate.getTime() <= today.getTime()) {
+            plantCard.classList.add('needs-water-urgent');
+        } else if (nextDate.getTime() === tomorrow.getTime()) {
+            plantCard.classList.add('needs-water-soon');
+        }
+    }
+
 
     return plantCard;
 }
 
 function renderPlants() {
-    plantsListDiv.innerHTML = ''; // Clear current list
+    plantsListDiv.innerHTML = ''; 
 
     if (plants.length === 0) {
-        plantsListDiv.innerHTML = '<p>Aún no has añadido ninguna planta. ¡Haz clic en "Añadir Nueva Planta" para empezar!</p>';
+        plantsListDiv.innerHTML = '<p class="empty-state-message">Aún no has añadido ninguna planta. ¡Haz clic en "Añadir Nueva Planta" para empezar!</p>';
         return;
     }
 
     const groupedPlants = {};
-    const unscheduledKey = 'Unscheduled'; // Plants with no nextReminderDate
+    const unscheduledKey = 'Unscheduled';
 
     plants.forEach(plant => {
         if (plant.nextReminderDate) {
             const date = new Date(plant.nextReminderDate);
-            // Format date as YYYY-MM-DD for consistent grouping and sorting
             const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+            const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             const dateKey = `${year}-${month}-${day}`;
 
@@ -154,52 +236,83 @@ function renderPlants() {
     });
 
     const dateKeys = Object.keys(groupedPlants).filter(key => key !== unscheduledKey);
-    dateKeys.sort(); // Sorts YYYY-MM-DD strings chronologically
+    dateKeys.sort((a, b) => new Date(a) - new Date(b)); // Sort date keys chronologically
 
     const sortedGroupKeys = [...dateKeys];
-    if (groupedPlants[unscheduledKey]) {
-        sortedGroupKeys.push(unscheduledKey); // Add unscheduled group at the end
+    if (groupedPlants[unscheduledKey] && groupedPlants[unscheduledKey].length > 0) {
+        sortedGroupKeys.push(unscheduledKey);
     }
 
+    if (sortedGroupKeys.length === 0 || (sortedGroupKeys.length === 1 && sortedGroupKeys[0] === unscheduledKey && groupedPlants[unscheduledKey].length === 0) ) {
+         plantsListDiv.innerHTML = '<p class="empty-state-message">No hay plantas con recordatorios programados. Riega una planta para establecer su próximo recordatorio o revisa las no programadas.</p>';
+        // If only unscheduled and it's empty, this check handles it.
+        // If unscheduled has items, it will proceed to render that group.
+    }
+
+
     sortedGroupKeys.forEach(key => {
-        const header = document.createElement('h3'); // Using h3 for date headers
-        header.classList.add('date-group-header'); 
+        if (key === unscheduledKey && groupedPlants[unscheduledKey].length === 0) {
+            return; // Don't render empty unscheduled group
+        }
+
+        const agendaDayGroup = document.createElement('div');
+        agendaDayGroup.classList.add('agenda-day-group');
+
+        const header = document.createElement('h2');
+        header.classList.add('agenda-date-header');
 
         if (key === unscheduledKey) {
-            header.textContent = 'Recordatorio no programado';
+            header.textContent = 'Riego no programado';
         } else {
-            // Format for display, e.g., "Tuesday, October 26, 2023"
             const dateParts = key.split('-');
             const displayDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-            header.textContent = `Próximo riego: ${displayDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
-        }
-        plantsListDiv.appendChild(header);
+            
+            const today = new Date(); today.setHours(0,0,0,0);
+            const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
 
-        groupedPlants[key].forEach(plant => {
+            if (displayDate.getTime() === today.getTime()) {
+                header.textContent = `Hoy, ${displayDate.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}`;
+                agendaDayGroup.classList.add('today');
+            } else if (displayDate.getTime() === tomorrow.getTime()) {
+                header.textContent = `Mañana, ${displayDate.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}`;
+                agendaDayGroup.classList.add('tomorrow');
+            } else {
+                header.textContent = displayDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            }
+        }
+        agendaDayGroup.appendChild(header);
+
+        const plantsForDayContainer = document.createElement('div');
+        plantsForDayContainer.classList.add('plant-cards-for-day');
+        
+        groupedPlants[key].sort((a,b) => a.name.localeCompare(b.name)).forEach(plant => { // Sort plants alphabetically within each group
             const plantCardElement = createPlantCardElement(plant);
-            plantsListDiv.appendChild(plantCardElement);
+            plantsForDayContainer.appendChild(plantCardElement);
         });
+        agendaDayGroup.appendChild(plantsForDayContainer);
+        plantsListDiv.appendChild(agendaDayGroup);
     });
 }
 
+
 // --- Modal Logic (Add/Edit Plant) ---
 function openModalForNewPlant() {
-    editingPlantId = null; // Ensure we are in "add new" mode
+    editingPlantId = null;
     modalTitle.textContent = 'Añadir Nueva Planta';
-    plantIdInput.value = ''; // Clear hidden ID field
+    plantIdInput.value = '';
     plantNameInput.value = '';
     plantFrequencyInput.value = '';
-    if (plantPhotoInput) plantPhotoInput.value = ''; // Clear photo input
+    if (plantPhotoInput) plantPhotoInput.value = '';
     plantModal.style.display = 'block';
 }
 
 function openEditModal(plant) {
     editingPlantId = plant.id;
     modalTitle.textContent = 'Editar Planta';
-    plantIdInput.value = plant.id; // Set hidden ID for saving
+    plantIdInput.value = plant.id;
     plantNameInput.value = plant.name;
     plantFrequencyInput.value = plant.baseWateringFrequencyDays;
-    if (plantPhotoInput) plantPhotoInput.value = ''; // Clear photo input for re-selection
+    if (plantPhotoInput) plantPhotoInput.value = '';
     plantModal.style.display = 'block';
 }
 
@@ -207,26 +320,29 @@ function closeModal() {
     plantModal.style.display = 'none';
 }
 
-// New function to handle the actual saving of plant data
 function savePlantData(name, frequency, photoDataURL, currentEditingPlantId) {
-    if (currentEditingPlantId) { // Editing existing plant
+    if (currentEditingPlantId) {
         const plantIndex = plants.findIndex(p => p.id === currentEditingPlantId);
         if (plantIndex > -1) {
             plants[plantIndex].name = name;
             plants[plantIndex].baseWateringFrequencyDays = frequency;
-            plants[plantIndex].photo = photoDataURL; // Update photo
-            // Note: If frequency changes, nextReminderDate might ideally be recalculated
-            // or cleared, prompting a re-watering to set a new schedule.
+            if (photoDataURL !== undefined) { // Only update photo if a new one was processed or explicitly cleared
+                plants[plantIndex].photo = photoDataURL;
+            }
+            // If frequency changes, existing nextReminderDate may become less accurate.
+            // Consider prompting user to "water" the plant to reset schedule based on new frequency,
+            // or automatically recalculate if lastWateredDate and temperatureAtLastWatering are available.
+            // For now, keep it simple: reminder stays until next watering.
         }
-    } else { // Adding new plant
+    } else {
         const newPlant = {
-            id: 'plant_' + Date.now(), // Simple unique ID
+            id: 'plant_' + Date.now(),
             name: name,
             baseWateringFrequencyDays: frequency,
             lastWateredDate: null,
             nextReminderDate: null,
             temperatureAtLastWatering: null,
-            photo: photoDataURL, // Store photo data
+            photo: photoDataURL,
         };
         plants.push(newPlant);
     }
@@ -234,7 +350,7 @@ function savePlantData(name, frequency, photoDataURL, currentEditingPlantId) {
     localStorage.setItem('plants', JSON.stringify(plants));
     renderPlants();
     closeModal();
-    editingPlantId = null; // Reset editing state (moved here from handleSavePlant)
+    editingPlantId = null;
 }
 
 function handleSavePlant() {
@@ -247,14 +363,7 @@ function handleSavePlant() {
         return;
     }
 
-    let photoDataURL = null;
-    // Preserve existing photo if editing and no new file is chosen
-    if (editingPlantId) {
-        const existingPlant = plants.find(p => p.id === editingPlantId);
-        if (existingPlant) {
-            photoDataURL = existingPlant.photo;
-        }
-    }
+    let photoDataURL = editingPlantId ? plants.find(p => p.id === editingPlantId)?.photo : null; // Default to existing or null
 
     if (photoFile) {
         const reader = new FileReader();
@@ -264,12 +373,13 @@ function handleSavePlant() {
         };
         reader.onerror = (error) => {
             console.error('Error reading file:', error);
-            alert('Error al leer la imagen. La planta se guardará sin foto.');
-            savePlantData(name, frequency, photoDataURL, editingPlantId); // Save without new photo on error
+            alert('Error al leer la imagen. La planta se guardará con la foto anterior (si existe) o sin foto.');
+            // Pass undefined for photoDataURL so savePlantData knows not to change it from existing
+            savePlantData(name, frequency, editingPlantId ? plants.find(p => p.id === editingPlantId)?.photo : null, editingPlantId);
         };
         reader.readAsDataURL(photoFile);
     } else {
-        // No new photo file selected, save with existing (or null if new plant)
+        // If no new file, photoDataURL already holds the existing photo (or null for new plant)
         savePlantData(name, frequency, photoDataURL, editingPlantId);
     }
 }
@@ -279,7 +389,6 @@ function handleDeletePlant(plantId) {
         plants = plants.filter(p => p.id !== plantId);
         localStorage.setItem('plants', JSON.stringify(plants));
         renderPlants();
-        // Consider canceling any pending notifications for this plant if your SW supports it via tags
     }
 }
 
@@ -298,50 +407,39 @@ async function handleWaterPlant(plantId) {
     console.log(`Watering ${plant.name} on: ${now.toLocaleString()}`);
 
     try {
-        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${API_KEY_WEATHERAPI}&q=Valencia&days=2&aqi=no&alerts=no`);
+        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${API_KEY_WEATHERAPI}&q=Valencia&days=2&aqi=no&alerts=no&lang=es`);
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: "Failed to parse error response" }));
             throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorData.error?.message || response.statusText}`);
         }
         const data = await response.json();
-        // console.log('WeatherAPI Forecast Response (2-day):', data); // REMOVE
 
         let maxTemp;
-        let tempSource = "today"; // To log the source of temperature
+        let tempSource = "today";
 
-        // Try to get tomorrow's forecast
-        if (data.forecast && data.forecast.forecastday && data.forecast.forecastday[1] && data.forecast.forecastday[1].day && typeof data.forecast.forecastday[1].day.maxtemp_c !== 'undefined') {
+        if (data.forecast?.forecastday?.[1]?.day?.maxtemp_c !== undefined) {
             maxTemp = data.forecast.forecastday[1].day.maxtemp_c;
             tempSource = "tomorrow's forecast";
-        } 
-        // Fallback to today's forecast if tomorrow's is not available
-        else if (data.forecast && data.forecast.forecastday && data.forecast.forecastday[0] && data.forecast.forecastday[0].day && typeof data.forecast.forecastday[0].day.maxtemp_c !== 'undefined') {
+        } else if (data.forecast?.forecastday?.[0]?.day?.maxtemp_c !== undefined) {
             maxTemp = data.forecast.forecastday[0].day.maxtemp_c;
             tempSource = "today's forecast (fallback)";
             console.warn(`Tomorrow's forecast not available. Using ${tempSource} in Valencia (WeatherAPI): ${maxTemp}°C`);
-        } 
-        // If neither is available, throw an error
-        else {
+        } else {
             throw new Error('Max temperature data (maxtemp_c) not found in WeatherAPI forecast response for today or tomorrow.');
         }
         
-        plant.temperatureAtLastWatering = maxTemp; // Store forecasted max temp
+        plant.temperatureAtLastWatering = parseFloat(maxTemp.toFixed(1));
 
-        let effectiveFrequency = plant.baseWateringFrequencyDays; // Start with base frequency
+        let effectiveFrequency = plant.baseWateringFrequencyDays;
         let adjustmentReason = "Base frequency";
 
         if (maxTemp > 32) {
-            effectiveFrequency = plant.baseWateringFrequencyDays - 1; 
+            effectiveFrequency = Math.max(1, plant.baseWateringFrequencyDays - 1); 
             adjustmentReason = `Temp > 32°C (${maxTemp}°C), -1 day`;
         } else if (maxTemp < 20) { 
             effectiveFrequency = plant.baseWateringFrequencyDays + 1;
             adjustmentReason = `Temp < 20°C (${maxTemp}°C), +1 day`;
-        } else {
-            // Base frequency is used, adjustmentReason remains "Base frequency"
         }
-
-        effectiveFrequency = Math.max(1, effectiveFrequency); // Ensure frequency is at least 1 day
-        // console.log(`Plant: ${plant.name}, Temp: ${maxTemp}°C, Adj. Freq: ${effectiveFrequency}d (${adjustmentReason})`); // Retaining this commented as an example of a concise debug log
 
         const reminderDate = new Date(now.getTime() + effectiveFrequency * 24 * 60 * 60 * 1000);
         plant.nextReminderDate = reminderDate.toISOString();
@@ -349,7 +447,8 @@ async function handleWaterPlant(plantId) {
         scheduleLocalNotification(
             reminderDate,
             `¡A regar tu ${plant.name}!`,
-            `Es hora de regar tu ${plant.name}. Max Temp. (${tempSource}): ${maxTemp}°C. (Base: ${plant.baseWateringFrequencyDays}d, Ajustado: ${effectiveFrequency}d. Razón: ${adjustmentReason})`
+            `Es hora de regar tu ${plant.name}. Max Temp. (${tempSource}): ${maxTemp}°C. (Base: ${plant.baseWateringFrequencyDays}d, Ajustado: ${effectiveFrequency}d. Razón: ${adjustmentReason})`,
+            `plant-${plant.id}-${reminderDate.getTime()}` // More specific tag
         );
 
     } catch (error) {
@@ -357,28 +456,25 @@ async function handleWaterPlant(plantId) {
         alert(`Error al obtener la temperatura: ${error.message}. Se usará la frecuencia base para el recordatorio.`);
         plant.temperatureAtLastWatering = "Error API";
 
-        // Fallback: schedule reminder using base frequency without temperature adjustment
         const reminderDate = new Date(now.getTime() + plant.baseWateringFrequencyDays * 24 * 60 * 60 * 1000);
         plant.nextReminderDate = reminderDate.toISOString();
         
         scheduleLocalNotification(
             reminderDate,
             `¡A regar tu ${plant.name}! (Error API Temp)`,
-            `Es hora de regar tu ${plant.name}. No se pudo obtener la temperatura. Usando frecuencia base.`
+            `Es hora de regar tu ${plant.name}. No se pudo obtener la temperatura. Usando frecuencia base.`,
+            `plant-${plant.id}-${reminderDate.getTime()}-fallback` // More specific tag
         );
     } finally {
-        // Always save plants array and re-render, regardless of API success/failure for watering part
         localStorage.setItem('plants', JSON.stringify(plants));
         renderPlants();
     }
 }
 
 // --- Schedule Local Notification ---
-function scheduleLocalNotification(date, title, body, tag = `notification-${new Date(date).getTime()}`) { // ADDED tag parameter with default
+function scheduleLocalNotification(date, title, body, tag = `notification-${new Date(date).getTime()}`) {
     if (!('Notification' in window) || Notification.permission !== 'granted') {
         console.log('Notifications not permitted or not supported. Reminder not scheduled.');
-        // Optionally alert the user here if they expected a notification
-        // alert('Las notificaciones no están permitidas. No se pudo programar el recordatorio.');
         return;
     }
 
@@ -386,141 +482,100 @@ function scheduleLocalNotification(date, title, body, tag = `notification-${new 
         navigator.serviceWorker.controller.postMessage({
             type: 'SCHEDULE_NOTIFICATION',
             payload: {
-                reminderDate: date.toISOString(), // Send as ISO string
+                reminderDate: date.toISOString(),
                 title,
                 body,
-                tag // Use the provided or generated tag
+                tag
             }
         });
-        // console.log(`Notification schedule request for "${title}" with tag "${tag}" sent to SW.`); // REMOVE
     } else {
-        // Fallback if SW is not active (less reliable if page closes)
         const delay = new Date(date).getTime() - Date.now();
         if (delay > 0) {
-            console.warn(`SW not active. Scheduling notification for "${title}" via page setTimeout (less reliable).`); // KEEP console.warn
+            console.warn(`SW not active. Scheduling notification for "${title}" via page setTimeout (less reliable).`);
             setTimeout(() => {
-                // This will only work if the page is still open.
-                // For PWA, the SW should handle this.
-                // To actually show it via SW if page is open but SW wasn't controller initially:
                 navigator.serviceWorker.ready.then(registration => {
                      registration.showNotification(title, {
                         body: body,
-                        icon: 'icons/icon-192x192.png', // Ensure this icon exists
-                        badge: 'icons/badge-72x72.png' // Ensure this icon exists
+                        icon: 'icons/icon-192x192.png',
+                        badge: 'icons/badge-72x72.png',
+                        tag: tag 
                     });
                 });
             }, delay);
-        } else {
-            // console.log(`Reminder for "${title}" is in the past. Not scheduling via page setTimeout.`); // REMOVE
         }
     }
 }
 
 
 // --- Event Listeners ---
-// Ensure these are set up after the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', async () => {
-    // One-time cleanup of old nutrition data from localStorage
-    // localStorage.removeItem('nutritionLog'); 
+    if (addPlantButton) addPlantButton.addEventListener('click', openModalForNewPlant);
+    else console.error("Add Plant Button not found");
 
-    // Modal Event Listeners
-    if (addPlantButton) {
-        addPlantButton.addEventListener('click', openModalForNewPlant);
-    } else {
-        console.error("Add Plant Button not found");
-    }
+    if (closeButton) closeButton.addEventListener('click', closeModal);
+    else console.error("Modal Close Button not found");
 
-    if (closeButton) {
-        closeButton.addEventListener('click', closeModal);
-    } else {
-        console.error("Modal Close Button not found");
-    }
+    if (savePlantButton) savePlantButton.addEventListener('click', handleSavePlant);
+    else console.error("Save Plant Button not found");
 
-    if (savePlantButton) {
-        savePlantButton.addEventListener('click', handleSavePlant);
-    } else {
-        console.error("Save Plant Button not found");
-    }
-
-    // Close modal if clicked outside of it
     window.addEventListener('click', (event) => {
-        if (event.target === plantModal) {
-            closeModal();
-        }
+        if (event.target === plantModal) closeModal();
     });
 
-    // Initial setup
-    requestNotificationPermission(); // Ask for permission early or at a more opportune time
-    loadPlants(); // Load existing plants from localStorage and render them
+    requestNotificationPermission();
+    loadPlants(); 
+    fetchAndDisplayWeather(); // Initial weather load for plants tab
 
-    // --- Tab Switching Logic ---
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
 
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
-            // Remove active class from all buttons and hide all content
             tabButtons.forEach(btn => btn.classList.remove('active'));
             tabContents.forEach(content => {
                 content.classList.remove('active');
-                content.style.display = 'none'; // Ensure content is hidden
+                content.style.display = 'none';
             });
-
-            // Add active class to clicked button
             button.classList.add('active');
-
-            // Show corresponding tab content
             const tabId = button.getAttribute('data-tab');
             const activeTabContent = document.getElementById(tabId);
             if (activeTabContent) {
                 activeTabContent.classList.add('active');
-                activeTabContent.style.display = 'block'; // Or 'flex', etc. as needed
-                if (tabId === 'nutritionTab') {
+                activeTabContent.style.display = 'block';
+                if (tabId === 'plantsTab') {
+                    fetchAndDisplayWeather(); // Refresh weather on tab switch
+                    renderPlants(); // Re-render plants in case of updates from other tabs if any in future
+                } else if (tabId === 'nutritionTab') {
                     populatePlantSelect();
                     renderVitaminSummary();
-                    loadNutritionLog(); // Also load the full log when tab is switched to
+                    loadNutritionLog();
                 }
             }
         });
     });
 
     const saveNutritionButton = document.getElementById('saveNutritionEntryButton');
-    if (saveNutritionButton) {
-        saveNutritionButton.addEventListener('click', handleSaveNutritionEntry);
-    } else {
-        console.error("Save Nutrition Entry Button not found");
-    }
-
-    // console.error("Quick Log Nutrient Button not found"); // This element is already removed from HTML.
+    if (saveNutritionButton) saveNutritionButton.addEventListener('click', handleSaveNutritionEntry);
+    else console.error("Save Nutrition Entry Button not found");
 });
 
 // --- Nutrition Tab Functions ---
-let nutritionLog = []; // Array to store nutrition entries
+let nutritionLog = [];
 
 function populatePlantSelect() {
     const selectElement = document.getElementById('nutritionPlantSelect');
-    // Clear existing options except the first one
     selectElement.innerHTML = '<option value="">Selecciona una planta...</option>'; 
-
-    plants.forEach(plant => {
+    plants.sort((a,b) => a.name.localeCompare(b.name)).forEach(plant => { // Sort plants in dropdown
         const option = document.createElement('option');
         option.value = plant.id;
         option.textContent = plant.name;
         selectElement.appendChild(option);
     });
-    console.log('populatePlantSelect called - plants populated in dropdown.');
 }
 
 function renderVitaminSummary() {
     const summaryList = document.getElementById('vitaminSummaryList');
-    if (!summaryList) {
-        console.error('vitaminSummaryList element not found');
-        return;
-    }
-
-    // Ensure nutritionLog is loaded, though it should be by other calls.
-    // If nutritionLog isn't guaranteed to be populated, call loadNutritionLog() here.
-    // For now, assuming it's populated as per current app flow.
+    if (!summaryList) return;
 
     let vitaminCount = 0;
     if (nutritionLog && nutritionLog.length > 0) {
@@ -528,17 +583,12 @@ function renderVitaminSummary() {
             entry.type && entry.type.toLowerCase().includes('vitamin')
         ).length;
     }
-
-    if (vitaminCount > 0) {
-        summaryList.innerHTML = `<li>Total de aplicaciones de vitaminas: ${vitaminCount}</li>`;
-    } else {
-        summaryList.innerHTML = '<li>No se han registrado aplicaciones de vitaminas.</li>';
-    }
-    console.log(`renderVitaminSummary called - Vitamin applications: ${vitaminCount}`);
+    summaryList.innerHTML = vitaminCount > 0 
+        ? `<li>Total de aplicaciones de vitaminas: ${vitaminCount}</li>`
+        : '<li>No se han registrado aplicaciones de vitaminas.</li>';
 }
 
 function handleSaveNutritionEntry() {
-    console.log('handleSaveNutritionEntry called - this will save nutrition data.');
     const plantId = document.getElementById('nutritionPlantSelect').value;
     const date = document.getElementById('nutritionDate').value;
     const type = document.getElementById('nutritionType').value.trim();
@@ -560,52 +610,55 @@ function handleSaveNutritionEntry() {
 
     nutritionLog.push(newEntry);
     localStorage.setItem('nutritionLog', JSON.stringify(nutritionLog));
-    console.log('Nutrition entry saved:', newEntry);
     
-    // Re-render the log and summary
     loadNutritionLog(); 
     renderVitaminSummary();
 
-    // Clear the form
     document.getElementById('nutritionForm').reset();
-    document.getElementById('nutritionPlantSelect').value = ""; // Reset select
+    document.getElementById('nutritionPlantSelect').value = "";
 }
 
 function loadNutritionLog() {
     const storedLog = localStorage.getItem('nutritionLog');
-    if (storedLog) {
-        nutritionLog = JSON.parse(storedLog);
-    } else {
-        nutritionLog = []; // Initialize if nothing in storage
-    }
+    nutritionLog = storedLog ? JSON.parse(storedLog) : [];
 
     const logListDiv = document.getElementById('nutritionLogList');
-    logListDiv.innerHTML = ''; // Clear current list
+    logListDiv.innerHTML = '';
 
     if (nutritionLog.length === 0) {
         logListDiv.innerHTML = '<p>No hay entradas de nutrición todavía.</p>';
         return;
     }
 
-    nutritionLog.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date, newest first
+    nutritionLog.sort((a, b) => new Date(b.date) - new Date(a.date)); 
 
     nutritionLog.forEach(entry => {
         const entryDiv = document.createElement('div');
         entryDiv.classList.add('nutrition-entry');
-        // Highlight if it contains 'vitamin' (case-insensitive)
         if (entry.type.toLowerCase().includes('vitamin')) {
             entryDiv.classList.add('vitamin-entry-highlight');
         }
-
         entryDiv.innerHTML = `
             <h3>${entry.plantName} - ${entry.type}</h3>
             <p><strong>Fecha:</strong> ${new Date(entry.date).toLocaleDateString()}</p>
             ${entry.notes ? `<p><strong>Notas:</strong> ${entry.notes}</p>` : ''}
+            <button class="delete-nutrition-entry-button" data-entry-id="${entry.id}" title="Eliminar entrada">🗑️</button>
         `;
         logListDiv.appendChild(entryDiv);
     });
-    console.log('loadNutritionLog called - log displayed.');
+
+    // Add event listeners for new delete buttons
+    logListDiv.querySelectorAll('.delete-nutrition-entry-button').forEach(button => {
+        button.addEventListener('click', handleDeleteNutritionEntry);
+    });
 }
 
-// The duplicated renderPlants function and its trailing comment are removed.
-// The primary renderPlants function (defined earlier in the file) is the one being used.
+function handleDeleteNutritionEntry(event) {
+    const entryId = event.target.closest('button').dataset.entryId;
+    if (confirm('¿Estás seguro de que quieres eliminar esta entrada de nutrición?')) {
+        nutritionLog = nutritionLog.filter(entry => entry.id !== entryId);
+        localStorage.setItem('nutritionLog', JSON.stringify(nutritionLog));
+        loadNutritionLog(); // Reload and re-render the list
+        renderVitaminSummary(); // Update summary
+    }
+}

@@ -9,31 +9,32 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/png" href="icons/favicon-32x32.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="icons/favicon-16x16.png" sizes="16x16">
 </head>
 <body>
     <div class="container">
+        <header class="app-header">
+            <h1>Mi Jardín Inteligente</h1>
+        </header>
         <div class="tabs">
             <button class="tab-button active" data-tab="plantsTab">Mis Plantas</button>
             <button class="tab-button" data-tab="nutritionTab">Nutrición</button>
         </div>
 
         <div id="plantsTab" class="tab-content active">
-            <h1>Mis Plantas</h1>
-            <button id="addPlantButton">➕ Añadir Nueva Planta</button>
+            <div id="generalWeatherDisplay" class="weather-display">
+                <!-- Weather info will be populated here by JS -->
+                <p>Cargando información del tiempo...</p>
+            </div>
+            
+            <div class="plants-tab-header">
+                <h2>Agenda de Riego</h2>
+                <button id="addPlantButton" class="button-primary">➕ <span class="button-text-main">Añadir Planta</span></button>
+            </div>
 
             <div id="plantsList">
                 <!-- Las plantas se insertarán aquí por JS -->
-                <!-- Ejemplo de cómo se vería una planta:
-                <div class="plant-card" data-id="plant_id_example">
-                    <h2>Nombre de la Planta</h2>
-                    <p class="last-watered">Último riego: Nunca</p>
-                    <p class="next-reminder">Próximo aviso: Pendiente</p>
-                    <p class="base-frequency">Frecuencia base: X días</p>
-                    <button class="water-button">💧 Regada Hoy</button>
-                    <button class="edit-plant-button">✏️</button>
-                    <button class="delete-plant-button">🗑️</button>
-                </div>
-                -->
             </div>
 
             <!-- Modal para Añadir/Editar Planta (inicialmente oculto) -->
@@ -48,30 +49,27 @@
                     <input type="number" id="plantFrequency" min="1" required><br><br>
                     <label for="plantPhotoInput">Foto (opcional):</label>
                     <input type="file" id="plantPhotoInput" accept="image/*"><br><br>
-                    <button id="savePlantButton">Guardar Planta</button>
+                    <button id="savePlantButton" class="button-primary">Guardar Planta</button>
                 </div>
             </div>
         </div>
 
         <div id="nutritionTab" class="tab-content" style="display:none;">
-            <h1>Nutrición de Plantas</h1>
-            <!-- Placeholder for Nutrition Summary -->
-            <div class="nutrition-summary-container">
-                <h2>Resumen de Nutrición</h2>
+            <h2>Nutrición de Plantas</h2>
+            
+            <div class="nutrition-section">
+                <h3>Resumen de Nutrición</h3>
                 <ul id="vitaminSummaryList">
-                    <!-- Summary items will be populated by JS -->
                     <li>Resumen de vitaminas aparecerá aquí...</li>
                 </ul>
             </div>
 
-            <!-- Placeholder for Nutrition Form -->
-            <div class="nutrition-form-container">
-                <h2>Registrar Nueva Entrada de Nutrición</h2>
+            <div class="nutrition-section">
+                <h3>Registrar Nueva Entrada</h3>
                 <form id="nutritionForm">
                     <div>
                         <label for="nutritionPlantSelect">Planta:</label>
-                        <select id="nutritionPlantSelect" name="plantId">
-                            <!-- Options will be populated by JS -->
+                        <select id="nutritionPlantSelect" name="plantId" required>
                             <option value="">Selecciona una planta...</option>
                         </select>
                     </div>
@@ -84,18 +82,16 @@
                         <input type="text" id="nutritionType" name="type" placeholder="Ej: Vitamina B1, Fertilizante NPK" required>
                     </div>
                     <div>
-                        <label for="nutritionNotes">Notas:</label>
+                        <label for="nutritionNotes">Notas (opcional):</label>
                         <textarea id="nutritionNotes" name="notes" rows="3"></textarea>
                     </div>
-                    <button type="button" id="saveNutritionEntryButton">Guardar Entrada</button>
+                    <button type="button" id="saveNutritionEntryButton" class="button-primary">Guardar Entrada</button>
                 </form>
             </div>
 
-            <!-- Placeholder for Nutrition Log -->
-            <div class="nutrition-log-container">
-                <h2>Historial de Nutrición</h2>
+            <div class="nutrition-section">
+                <h3>Historial de Nutrición</h3>
                 <div id="nutritionLogList">
-                    <!-- Log entries will be populated by JS -->
                     <p>No hay entradas de nutrición todavía.</p>
                 </div>
             </div>

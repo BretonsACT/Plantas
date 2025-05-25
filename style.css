@@ -1,598 +1,146 @@
-/* style.css - Añadir al final o en una sección relevante */
+// ws.js - Service Worker
 
-/* style.css */
+const CACHE_NAME = 'plantas-cache-v2'; // Increment cache version
+const ASSETS_TO_CACHE = [
+    '/',
+    'index.html',
+    'style.css',
+    'app.js',
+    'manifest.json',
+    'icons/icon-192x192.png',
+    'icons/icon-512x512.png',
+    'icons/favicon-16x16.png',
+    'icons/favicon-32x32.png'
+    // Add other critical assets like fonts if locally hosted
+];
 
-/* --- Variables CSS Globales (Opcional pero útil) --- */
-:root {
-    --primary-color: #4CAF50; /* Verde principal para la app */
-    --secondary-color: #8BC34A; /* Verde más claro */
-    --accent-color: #FFC107; /* Amarillo para acentos o alertas */
-    --background-color: #f4f6f8; /* Fondo general claro */
-    --card-background: #ffffff;
-    --text-color: #333333;
-    --light-text-color: #ffffff;
-    --border-color: #e8e8e8; /* Lighter shade of gray */
-    --shadow-color: rgba(0, 0, 0, 0.08); /* Softer shadow */
-    --danger-color: #f44336; /* Rojo para eliminar */
-    --edit-color: #2196F3; /* Azul para editar */
-}
+self.addEventListener('install', event => {
+    console.log('Service Worker: Instalado');
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('Service Worker: Cacheando assets iniciales');
+                return cache.addAll(ASSETS_TO_CACHE);
+            })
+            .catch(error => {
+                console.error('Service Worker: Fallo al cachear assets iniciales', error);
+            })
+    );
+    self.skipWaiting();
+});
 
-/* --- Reseteo Básico y Estilos Globales --- */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+self.addEventListener('activate', event => {
+    console.log('Service Worker: Activado');
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('Service Worker: Eliminando caché antigua:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+    return self.clients.claim();
+});
 
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    line-height: 1.7; /* Adjusted line-height */
-    background-color: var(--background-color);
-    color: var(--text-color);
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
+self.addEventListener('fetch', event => {
+    // Estrategia: Network falling back to cache for API calls, Cache first for static assets
+    const requestUrl = new URL(event.request.url);
 
-.container {
-    width: 100%;
-    max-width: 900px; /* Ancho máximo para la mayoría del contenido */
-    margin: 0 auto;
-    padding: 20px;
-    background-color: var(--card-background);
-    border-radius: 8px;
-    box-shadow: 0 2px 10px var(--shadow-color);
-}
-
-/* --- Tab Styles --- */
-.tabs {
-    display: flex;
-    margin-bottom: 20px;
-    border-bottom: 2px solid var(--border-color);
-}
-.tab-button {
-    padding: 10px 20px;
-    cursor: pointer;
-    border: none;
-    background-color: transparent;
-    font-size: 1em;
-    color: var(--text-color); /* Or a muted color */
-    border-bottom: 3px solid transparent; /* For active indicator */
-    margin-bottom: -2px; /* Align with container's border-bottom */
-    transition: background-color 0.3s ease, color 0.3s ease, border-bottom-color 0.3s ease;
-}
-.tab-button.active {
-    color: var(--primary-color);
-    border-bottom: 3px solid var(--primary-color);
-    font-weight: bold;
-}
-.tab-button:hover:not(.active) {
-    background-color: #f0f0f0; /* Light hover for non-active tabs */
-    color: var(--primary-color);
-}
-.tab-content {
-     /* display: none; /* JS will handle this, but good default, HTML already sets display:none for inactive */
-}
-.tab-content.active {
-    display: block; /* Or flex, grid, etc., depending on content */
-}
-
-/* Ensure h1 within tab content is styled correctly */
-.tab-content h1 {
-    color: var(--primary-color);
-    text-align: center;
-    margin-bottom: 30px;
-    font-size: 2em;
-}
-
-h2 {
-    color: var(--primary-color);
-    margin-bottom: 10px;
-    font-size: 1.5em;
-}
-
-button {
-    cursor: pointer;
-    padding: 10px 18px;
-    border: none;
-    border-radius: 5px;
-    font-size: 1em;
-    transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease; /* Added box-shadow transition */
-}
-
-button:active {
-    transform: scale(0.98);
-}
-
-/* --- Botón de Añadir Planta Principal --- */
-#addPlantButton {
-    background-color: var(--primary-color);
-    color: var(--light-text-color);
-    display: block;
-    width: fit-content;
-    margin: 0 auto 30px auto;
-    font-size: 1.1em;
-    box-shadow: 0 2px 5px var(--shadow-color); /* Initial shadow */
-}
-
-#addPlantButton:hover {
-    background-color: var(--secondary-color);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); /* Enhanced shadow on hover */
-}
-
-/* --- Lista de Plantas --- */
-#plantsList {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Responsivo */
-    gap: 25px;
-}
-
-.plant-card {
-    background-color: var(--card-background);
-    border: 1px solid var(--border-color);
-    border-radius: 10px; 
-    padding: 15px; /* Reduced padding */
-    box-shadow: 0 2px 6px var(--shadow-color); 
-    display: flex;
-    flex-direction: column;
-    gap: 8px; /* Reduced gap */
-}
-
-.plant-card h2 {
-    margin-top: 0;
-    margin-bottom: 5px; /* Reduced margin-bottom */
-    font-size: 1.2em; /* Reduced font-size */
-    text-align: center;
-}
-
-.plant-card p {
-    font-size: 0.85em; /* Reduced font-size */
-    color: #555;
-    word-wrap: break-word; 
-    margin-bottom: 4px; /* Reduced margin-bottom */
-}
-
-.plant-card .watering-info, /* Updated class name */
-.plant-card .base-frequency,
-.plant-card .temp-info {
-    padding: 6px; 
-    background-color: #f0f4f8; 
-    border-radius: 4px; 
-    margin-bottom: 4px; /* Reduced margin-bottom */
-}
-
-.plant-card .temp-info {
-    font-style: italic;
-    font-size: 0.85em;
-    color: #777;
-}
-
-/* --- Estilos para la Foto de la Planta en la Tarjeta --- */
-.plant-card img {
-    max-width: 100%;
-    height: auto; 
-    max-height: 150px; /* Reduced max-height */
-    object-fit: cover; 
-    border-radius: 6px; 
-    margin-bottom: 10px; /* Reduced margin-bottom */
-    display: block; 
-}
-
-/* --- Botones dentro de la Tarjeta de Planta --- */
-.plant-card .water-button {
-    background-color: var(--primary-color);
-    color: var(--light-text-color);
-    width: 100%;
-    padding: 8px 10px; /* Reduced padding */
-    font-size: 0.9em; /* Reduced font-size */
-    margin-top: 8px; /* Reduced margin-top */
-}
-.plant-card .water-button:hover {
-    background-color: #3e8e41;
-}
-
-.plant-card .button-group {
-    display: flex;
-    gap: 8px; /* Reduced gap */
-    margin-top: 8px; /* Reduced margin-top */
-}
-
-.plant-card .edit-plant-button,
-.plant-card .delete-plant-button {
-    flex-grow: 1; 
-    padding: 6px 8px; /* Reduced padding */
-    font-size: 0.85em; /* Reduced font-size */
-}
-
-.plant-card .edit-plant-button {
-    background-color: var(--edit-color);
-    color: var(--light-text-color);
-}
-.plant-card .edit-plant-button:hover {
-    background-color: #1e88e5;
-}
-
-.plant-card .delete-plant-button {
-    background-color: var(--danger-color);
-    color: var(--light-text-color);
-}
-.plant-card .delete-plant-button:hover {
-    background-color: #e53935;
-}
-
-
-/* --- Modal para Añadir/Editar Planta --- */
-.modal {
-    display: none; /* Oculto por defecto, JS lo muestra */
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.6); /* Fondo oscuro semi-transparente */
-    padding-top: 60px; /* Espacio para que no esté pegado arriba */
-}
-
-.modal-content {
-    background-color: var(--card-background);
-    margin: 5% auto;
-    padding: 25px 30px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px; /* Ancho máximo del contenido del modal */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); /* Softer box-shadow for modal */
-    position: relative; /* Para el botón de cerrar */
-    animation: fadeInModal 0.3s ease-out;
-}
-
-@keyframes fadeInModal {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.close-button {
-    color: #aaa;
-    float: right; /* Mantenido para compatibilidad, pero position absolute es mejor */
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    font-size: 28px;
-    font-weight: bold;
-    line-height: 1;
-}
-
-.close-button:hover,
-.close-button:focus {
-    color: var(--text-color);
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.modal-content h2 {
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 25px;
-}
-
-.modal-content label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: #444;
-}
-
-.modal-content input[type="text"],
-.modal-content input[type="number"] {
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 20px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 1em;
-}
-.modal-content input[type="text"]:focus,
-.modal-content input[type="number"]:focus {
-    border-color: var(--primary-color);
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-}
-
-/* Estilo para el input de la foto en el modal */
-.modal-content input#plantPhotoInput {
-    width: 100%; /* Asegura que ocupe el ancho disponible */
-    padding: 10px; /* Un poco de padding para que no se vea tan pegado */
-    margin-top: 5px; /* Espacio arriba */
-    margin-bottom: 20px; /* Mantiene el espaciado consistente con otros inputs */
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 0.9em; /* Tamaño de fuente ligeramente más pequeño para el nombre del archivo */
-    display: block; /* Asegura que ocupe su propia línea */
-    /* Nota: La apariencia del botón "Choose File" es difícil de estilar directamente con CSS de forma cross-browser.
-       Esto proporciona un espaciado y borde básico. */
-}
-.modal-content input#plantPhotoInput:focus {
-    border-color: var(--primary-color);
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2); /* Consistente con otros inputs */
-}
-
-
-#savePlantButton {
-    background-color: var(--primary-color);
-    color: var(--light-text-color);
-    display: block;
-    width: 100%;
-    padding: 12px;
-    font-size: 1.1em;
-    margin-top: 10px;
-    box-shadow: 0 2px 5px var(--shadow-color); /* Initial shadow, consistent with addPlantButton */
-}
-
-#savePlantButton:hover {
-    background-color: var(--secondary-color);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); /* Enhanced shadow on hover */
-}
-
-/* --- Mensaje cuando no hay plantas --- */
-#plantsList p {
-    text-align: center;
-    font-style: italic;
-    color: #777;
-    grid-column: 1 / -1; /* Para que ocupe todo el ancho del grid */
-}
-
-/* --- Date Group Headers --- */
-#plantsList .date-group-header {
-    grid-column: 1 / -1; /* Span full width of the grid */
-    margin-top: 20px;
-    margin-bottom: 10px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid var(--border-color, #eee);
-    font-size: 1.2em;
-    color: var(--text-color, #333);
-    font-weight: bold;
-}
-
-#plantsList .date-group-header:first-child {
-    margin-top: 0;
-}
-
-
-/* --- Media Queries para Responsividad --- */
-@media (max-width: 768px) {
-    .container {
-        padding: 15px;
+    if (requestUrl.origin === location.origin && ASSETS_TO_CACHE.includes(requestUrl.pathname)) {
+        // Cache first for static assets defined in ASSETS_TO_CACHE
+        event.respondWith(
+            caches.match(event.request)
+                .then(cachedResponse => {
+                    return cachedResponse || fetch(event.request).then(networkResponse => {
+                        // Optionally cache new static assets if they weren't in the initial list
+                        // but generally static assets are defined upfront.
+                        return networkResponse;
+                    });
+                })
+        );
+    } else if (requestUrl.protocol === 'http:' || requestUrl.protocol === 'https:') {
+        // Network first for other requests (like API calls)
+        event.respondWith(
+            fetch(event.request)
+                .then(networkResponse => {
+                    // Optionally cache API responses if appropriate for offline use
+                    // For weather API, freshness is key, so caching might not be ideal
+                    // or would need a short expiry.
+                    return networkResponse;
+                })
+                .catch(() => {
+                    // Fallback to cache if network fails and a cached response exists
+                    return caches.match(event.request);
+                })
+        );
     }
-    h1 {
-        font-size: 1.8em;
+    // For non-HTTP/HTTPS requests, or if no strategy matches, do default browser handling.
+});
+
+
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SCHEDULE_NOTIFICATION') {
+        const { reminderDate, title, body, tag } = event.data.payload;
+        const delay = new Date(reminderDate).getTime() - Date.now();
+
+        if (delay > 0) {
+            // console.log(`SW: Notificación programada para "${title}" con tag "${tag}" en ${Math.round(delay / 1000 / 60)} minutos.`);
+            setTimeout(() => {
+                self.registration.showNotification(title, {
+                    body: body,
+                    icon: 'icons/icon-192x192.png',
+                    badge: 'icons/badge-72x72.png', // Make sure this icon exists if you use it
+                    tag: tag, // Use the tag to allow replacement/closing
+                    renotify: true, // If a notification with the same tag is shown again, re-alert the user
+                    actions: [ // Example actions
+                        // { action: 'open_app', title: 'Abrir App' },
+                        // { action: 'dismiss', title: 'Descartar' }
+                    ]
+                });
+            }, delay);
+        } else {
+            console.log(`SW: La fecha de recordatorio para "${title}" (tag: ${tag}) ya pasó.`);
+            // Optionally, show immediately if it's very recently passed and still relevant
+            // self.registration.showNotification(title, {
+            //     body: body + " (Recordatorio programado para el pasado)",
+            //     icon: 'icons/icon-192x192.png',
+            //     tag: tag,
+            //     renotify: true
+            // });
+        }
     }
-    #plantsList {
-        grid-template-columns: 1fr; /* Una columna en pantallas pequeñas */
-        gap: 20px;
-    }
-    .modal-content {
-        width: 95%;
-        margin-top: 10%;
-        padding: 20px;
-    }
-}
+});
 
-@media (max-width: 480px) {
-    body {
-        padding: 10px;
-    }
-    .container {
-        padding: 10px;
-    }
-    h1 {
-        font-size: 1.5em;
-        margin-bottom: 20px;
-    }
-    .plant-card {
-        padding: 15px;
-    }
-    .plant-card h2 {
-        font-size: 1.1em;
-    }
-    .plant-card p {
-        font-size: 0.9em;
-    }
-    button, #addPlantButton, #savePlantButton {
-        padding: 10px 15px;
-        font-size: 0.95em;
-    }
-    .modal-content {
-        padding: 15px;
-    }
-    .modal-content input[type="text"],
-    .modal-content input[type="number"] {
-        padding: 10px;
-        font-size: 0.95em;
-    }
-}
+// Optional: Handle notification clicks
+self.addEventListener('notificationclick', event => {
+    console.log('SW: Notificación clickeada. Tag:', event.notification.tag);
+    event.notification.close(); // Close the notification
 
-/* ... (otros estilos de .plant-card) ... */
+    // Example: Focus an existing window or open a new one
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+            for (let i = 0; i < clientList.length; i++) {
+                let client = clientList[i];
+                // Check if the client is the app, potentially by URL or more specific checks
+                if (client.url === self.registration.scope && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // If no window is found, open a new one
+            if (self.clients.openWindow) {
+                return self.clients.openWindow(self.registration.scope); // Opens the app's root URL
+            }
+        })
+    );
 
-.plant-card.needs-water-urgent {
-    background-color: #ffebee; /* Un rojo muy pálido */
-    border-left: 5px solid #f44336; /* Borde rojo fuerte a la izquierda */
-}
-.plant-card.needs-water-urgent h2 {
-    color: #c62828; /* Título en rojo más oscuro */
-}
-
-.plant-card.needs-water-soon {
-    background-color: #fffde7; /* Un amarillo muy pálido */
-    border-left: 5px solid #FFC107; /* Borde amarillo fuerte a la izquierda */
-}
-.plant-card.needs-water-soon h2 {
-    color: #ff8f00; /* Título en naranja/amarillo oscuro */
-}
-
-/* --- Nutrition Tab Styles --- */
-.nutrition-summary-container { /* ADDED */
-    background-color: #eef3e6; /* A very light green, complementary to primary */
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 25px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-}
-.nutrition-summary-container h2 { /* ADDED */
-    text-align: center;
-    color: var(--primary-color);
-    margin-bottom: 15px;
-    font-size: 1.3em;
-}
-.nutrition-summary-container ul { /* ADDED */
-    list-style-type: none;
-    padding: 0;
-}
-.nutrition-summary-container li { /* ADDED */
-    padding: 8px 0;
-    border-bottom: 1px solid #e0e0e0;
-    font-size: 0.95em;
-}
-.nutrition-summary-container li:last-child { /* ADDED */
-    border-bottom: none;
-}
-.nutrition-form-container,
-.nutrition-log-container {
-    background-color: #f9f9f9; /* Slightly different background for sections */
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 25px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-}
-
-.nutrition-form-container h2,
-.nutrition-log-container h2 {
-    text-align: center;
-    color: var(--primary-color);
-    margin-bottom: 20px;
-}
-
-#nutritionForm div {
-    margin-bottom: 15px;
-}
-
-#nutritionForm label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 600;
-    color: #444;
-}
-
-#nutritionForm select,
-#nutritionForm input[type="date"],
-#nutritionForm textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 1em;
-    font-family: inherit; /* Ensure consistent font */
-}
-
-#nutritionForm textarea {
-    resize: vertical; /* Allow vertical resize, disable horizontal */
-    min-height: 60px;
-}
-
-#nutritionForm select:focus,
-#nutritionForm input[type="date"]:focus,
-#nutritionForm textarea:focus {
-    border-color: var(--primary-color);
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-}
-
-#saveNutritionEntryButton {
-    background-color: var(--primary-color);
-    color: var(--light-text-color);
-    display: block;
-    width: 100%;
-    padding: 12px;
-    font-size: 1.1em;
-    margin-top: 10px;
-    box-shadow: 0 2px 5px var(--shadow-color);
-}
-
-#saveNutritionEntryButton:hover {
-    background-color: var(--secondary-color);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-}
-
-.nutrition-entry {
-    background-color: var(--card-background);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
-    box-shadow: 0 1px 3px var(--shadow-color);
-}
-
-.nutrition-entry h3 {
-    color: var(--secondary-color); /* Slightly different color for entry titles */
-    font-size: 1.1em;
-    margin-top: 0;
-    margin-bottom: 10px;
-}
-
-.nutrition-entry p {
-    font-size: 0.9em;
-    color: #555;
-    margin-bottom: 5px;
-    line-height: 1.5;
-}
-
-.nutrition-entry p strong {
-    color: #333;
-}
-
-#nutritionLogList p:only-child { /* Style for "No entries" message */
-    text-align: center;
-    font-style: italic;
-    color: #777;
-    padding: 15px 0;
-}
-
-.vitamin-entry-highlight {
-    background-color: #fffacd; /* LemonChiffon, a light yellow */
-    border-left: 3px solid #ffd700; /* Gold */
-}
-.vitamin-entry-highlight h3 {
-    color: #b8860b; /* DarkGoldenrod - to make title stand out a bit on yellow */
-}
-
-
-/* Opcional: Estilos más intensos si lo prefieres */
-/*
-.plant-card.needs-water-urgent {
-    background-color: #f44336;
-    color: white;
-}
-.plant-card.needs-water-urgent h2,
-.plant-card.needs-water-urgent p,
-.plant-card.needs-water-urgent .water-button {
-    color: white;
-}
-.plant-card.needs-water-urgent .water-button {
-    background-color: #d32f2f;
-    border: 1px solid white;
-}
-
-.plant-card.needs-water-soon {
-    background-color: #FFC107;
-    color: #333;
-}
-.plant-card.needs-water-soon h2 {
-    color: #bf360c;
-}
-.plant-card.needs-water-soon .water-button {
-    background-color: #ffa000;
-}
-*/
+    // Handle actions if defined
+    // if (event.action === 'open_app') {
+    //     self.clients.openWindow('/'); // Adjust URL as needed
+    // } else if (event.action === 'dismiss') {
+    //     // Notification is already closed by event.notification.close()
+    // }
+});
