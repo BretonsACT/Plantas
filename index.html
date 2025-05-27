@@ -57,10 +57,10 @@
             <h1>Nutrición de Plantas</h1>
             <!-- Placeholder for Nutrition Summary -->
             <div class="nutrition-summary-container">
-                <h2>Resumen de Nutrición</h2>
-                <ul id="vitaminSummaryList">
+                <h2>Resumen de Aplicaciones</h2>
+                <ul id="nutritionSummaryList">
                     <!-- Summary items will be populated by JS -->
-                    <li>Resumen de vitaminas aparecerá aquí...</li>
+                    <li>Resumen de aplicaciones aparecerá aquí...</li>
                 </ul>
             </div>
 
@@ -69,19 +69,15 @@
                 <h2>Registrar Nueva Entrada de Nutrición</h2>
                 <form id="nutritionForm">
                     <div>
-                        <label for="nutritionPlantSelect">Planta:</label>
-                        <select id="nutritionPlantSelect" name="plantId">
-                            <!-- Options will be populated by JS -->
-                            <option value="">Selecciona una planta...</option>
-                        </select>
-                    </div>
-                    <div>
                         <label for="nutritionDate">Fecha:</label>
                         <input type="date" id="nutritionDate" name="date" required>
                     </div>
                     <div>
-                        <label for="nutritionType">Tipo de Nutriente/Vitamina:</label>
-                        <input type="text" id="nutritionType" name="type" placeholder="Ej: Vitamina B1, Fertilizante NPK" required>
+                        <label for="nutritionType">Tipo de Aditivo:</label>
+                        <select id="nutritionTypeSelect" name="type">
+                            <option value="Potasa" selected>Potasa</option>
+                            <option value="Iron">Iron</option>
+                        </select>
                     </div>
                     <div>
                         <label for="nutritionNotes">Notas:</label>
@@ -89,6 +85,11 @@
                     </div>
                     <button type="button" id="saveNutritionEntryButton">Guardar Entrada</button>
                 </form>
+            </div>
+
+            <div class="nutrition-prediction-container">
+                <h2>Próxima Aplicación de Nutrientes</h2>
+                <p id="nextNutritionDateText">Calculando...</p>
             </div>
 
             <!-- Placeholder for Nutrition Log -->

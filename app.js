@@ -477,8 +477,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 activeTabContent.style.display = 'block'; // Or 'flex', etc. as needed
                 if (tabId === 'nutritionTab') {
                     populatePlantSelect();
-                    renderVitaminSummary();
+                    renderNutritionSummary(); // Updated call
                     loadNutritionLog(); // Also load the full log when tab is switched to
+                    displayNextNutritionDate(); // Call to display the next nutrition date
                 }
             }
         });
@@ -497,62 +498,49 @@ document.addEventListener('DOMContentLoaded', async () => {
 // --- Nutrition Tab Functions ---
 let nutritionLog = []; // Array to store nutrition entries
 
-function populatePlantSelect() {
-    const selectElement = document.getElementById('nutritionPlantSelect');
-    // Clear existing options except the first one
-    selectElement.innerHTML = '<option value="">Selecciona una planta...</option>'; 
-
-    plants.forEach(plant => {
-        const option = document.createElement('option');
-        option.value = plant.id;
-        option.textContent = plant.name;
-        selectElement.appendChild(option);
-    });
-    console.log('populatePlantSelect called - plants populated in dropdown.');
-}
-
-function renderVitaminSummary() {
-    const summaryList = document.getElementById('vitaminSummaryList');
+function renderNutritionSummary() { // Renamed function
+    const summaryList = document.getElementById('nutritionSummaryList'); // Changed ID
     if (!summaryList) {
-        console.error('vitaminSummaryList element not found');
+        console.error('nutritionSummaryList element not found'); // Updated error message
         return;
     }
 
-    // Ensure nutritionLog is loaded, though it should be by other calls.
-    // If nutritionLog isn't guaranteed to be populated, call loadNutritionLog() here.
-    // For now, assuming it's populated as per current app flow.
+    let potasaCount = 0;
+    let ironCount = 0;
 
-    let vitaminCount = 0;
     if (nutritionLog && nutritionLog.length > 0) {
-        vitaminCount = nutritionLog.filter(entry => 
-            entry.type && entry.type.toLowerCase().includes('vitamin')
-        ).length;
+        nutritionLog.forEach(entry => {
+            if (entry.type === "Potasa") {
+                potasaCount++;
+            } else if (entry.type === "Iron") {
+                ironCount++;
+            }
+        });
     }
 
-    if (vitaminCount > 0) {
-        summaryList.innerHTML = `<li>Total de aplicaciones de vitaminas: ${vitaminCount}</li>`;
+    if (potasaCount > 0 || ironCount > 0) {
+        summaryList.innerHTML = `<li>Aplicaciones de Potasa: ${potasaCount}</li><li>Aplicaciones de Iron: ${ironCount}</li>`;
     } else {
-        summaryList.innerHTML = '<li>No se han registrado aplicaciones de vitaminas.</li>';
+        summaryList.innerHTML = '<li>No se han registrado aplicaciones de nutrientes.</li>';
     }
-    console.log(`renderVitaminSummary called - Vitamin applications: ${vitaminCount}`);
+    console.log(`renderNutritionSummary called - Potasa: ${potasaCount}, Iron: ${ironCount}`); // Updated console log
 }
 
 function handleSaveNutritionEntry() {
     console.log('handleSaveNutritionEntry called - this will save nutrition data.');
-    const plantId = document.getElementById('nutritionPlantSelect').value;
     const date = document.getElementById('nutritionDate').value;
-    const type = document.getElementById('nutritionType').value.trim();
+    const type = document.getElementById('nutritionTypeSelect').value; // Changed to nutritionTypeSelect
     const notes = document.getElementById('nutritionNotes').value.trim();
 
-    if (!plantId || !date || !type) {
-        alert('Por favor, selecciona una planta, introduce la fecha y el tipo de nutriente.');
+    if (!date || !type) { // Removed plantId from condition
+        alert('Por favor, introduce la fecha y el tipo de aditivo.'); // Updated alert message
         return;
     }
 
     const newEntry = {
         id: 'nutri_' + Date.now(),
-        plantId,
-        plantName: plants.find(p => p.id === plantId)?.name || 'Nombre no encontrado',
+        // plantId removed
+        // plantName removed
         date,
         type,
         notes
@@ -564,11 +552,12 @@ function handleSaveNutritionEntry() {
     
     // Re-render the log and summary
     loadNutritionLog(); 
-    renderVitaminSummary();
+    renderNutritionSummary(); // Updated call
+    displayNextNutritionDate(); // Call to display the next nutrition date
 
     // Clear the form
     document.getElementById('nutritionForm').reset();
-    document.getElementById('nutritionPlantSelect').value = ""; // Reset select
+    // document.getElementById('nutritionPlantSelect').value = ""; // Reset select - This element is no longer part of the form
 }
 
 function loadNutritionLog() {
@@ -598,13 +587,55 @@ function loadNutritionLog() {
         }
 
         entryDiv.innerHTML = `
-            <h3>${entry.plantName} - ${entry.type}</h3>
+            <h3>Aplicación Global - ${entry.type}</h3>
             <p><strong>Fecha:</strong> ${new Date(entry.date).toLocaleDateString()}</p>
             ${entry.notes ? `<p><strong>Notas:</strong> ${entry.notes}</p>` : ''}
         `;
         logListDiv.appendChild(entryDiv);
     });
     console.log('loadNutritionLog called - log displayed.');
+    displayNextNutritionDate(); // Call to display the next nutrition date
+}
+
+// --- Next Nutrition Date Prediction ---
+function calculateNextNutritionDate() {
+    if (!nutritionLog || nutritionLog.length === 0) {
+        return null;
+    }
+
+    // Assuming nutritionLog is already sorted by date descending by loadNutritionLog()
+    // If not, uncomment and adapt:
+    // const sortedLog = [...nutritionLog].sort((a, b) => new Date(b.date) - new Date(a.date));
+    // const lastEntryDate = sortedLog[0].date;
+
+    const lastEntryDate = nutritionLog[0].date; // nutritionLog is sorted by loadNutritionLog
+    const newDate = new Date(lastEntryDate);
+    
+    // Add 2 months
+    newDate.setMonth(newDate.getMonth() + 2);
+    
+    return newDate;
+}
+
+function displayNextNutritionDate() {
+    const nextDateElement = document.getElementById('nextNutritionDateText');
+    if (!nextDateElement) {
+        console.error('nextNutritionDateText element not found');
+        return;
+    }
+
+    const nextDate = calculateNextNutritionDate();
+
+    if (nextDate === null) {
+        nextDateElement.textContent = "Aplica la primera dosis de nutrientes para iniciar las predicciones.";
+    } else {
+        // Format date as dd/mm/yyyy
+        const day = String(nextDate.getDate()).padStart(2, '0');
+        const month = String(nextDate.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+        const year = nextDate.getFullYear();
+        const formattedDate = `${day}/${month}/${year}`;
+        nextDateElement.textContent = `Próxima aplicación estimada: ${formattedDate}`;
+    }
 }
 
 // The duplicated renderPlants function and its trailing comment are removed.
